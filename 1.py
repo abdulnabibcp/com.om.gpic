@@ -1,57 +1,95 @@
 from datetime import datetime, timedelta
 import sqlite3
 import streamlit as st
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 # استيراد البيانات الحساسة والإعدادات من الملف المنفصل
 from config import BANK_INFO, BOT_WHATSAPP, SENDER_EMAIL, SENDER_PASSWORD
 
-# إعداد الصفحة وتصميم الواجهة مع دعم الاتجاه من اليمين لليسار (RTL) وتنسيق احترافي
+# إعداد الصفحة وتصميم الواجهة الفاخرة
 st.set_page_config(
-    page_title="شركة التخطيط العالمية للاستثمار | العقارات في مسقط والخليج",
+    page_title=(
+        "شركة التخطيط العالمية للاستثمار | Global Planning Investment"
+    ),
     page_icon="🏢",
     layout="wide",
 )
 
-# حقن أكواد CSS لضمان اتجاه الكتابة من اليمين ليسار (RTL) وتنسيق الخطوط والعناصر باحترافية
+# حقن أكواد CSS متقدمة لتصميم فاخر جداً (تصميم بطاقات، ألوان متناسقة، وتوجيه RTL)
 st.markdown(
     """
     <style>
-    /* توجيه الموقع بالكامل من اليمين إلى اليسار وتحديد خط عربي أنيق */
+    /* توجيه الموقع بالكامل من اليمين إلى اليسار وتحديد خط أنيق */
     html, body, [class*="css"] {
         direction: rtl;
         text-align: right;
         font-family: 'Tajawal', 'Cairo', sans-serif, Tahoma;
+        background-color: #f8f9fa;
     }
     
     /* تنسيق القائمة الجانبية */
     section[data-testid="stSidebar"] {
         direction: rtl;
         text-align: right;
+        background-color: #1b3b36;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #ffffff !important;
     }
 
-    /* تنسيق بطاقات العقارات لتبدو كمنصة عقارية عالمية */
-    .property-card {
+    /* بطاقات العقارات الفاخرة */
+    .luxury-card {
         background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+        padding: 25px;
+        border-radius: 16px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        margin-bottom: 25px;
+        transition: transform 0.2s ease;
+    }
+    .luxury-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     }
     
-    /* تنسيق الأزرار والعناوين البارزة */
+    /* تنسيق العناوين والأسعار */
     h1, h2, h3 {
         color: #1b3b36;
-        font-weight: 700;
+        font-weight: 800;
     }
     
-    .stButton>button {
-        width: 100%;
-        border-radius: 8px;
+    .price-tag {
+        background-color: #e6f4f1;
+        color: #0e6251;
+        padding: 6px 14px;
+        border-radius: 20px;
         font-weight: bold;
+        font-size: 16px;
+        display: inline-block;
+    }
+    
+    .badge-date {
+        color: #64748b;
+        font-size: 13px;
+        background-color: #f1f5f9;
+        padding: 4px 10px;
+        border-radius: 6px;
+        display: inline-block;
+    }
+
+    /* تنسيق الأزرار */
+    .stButton>button {
+        background-color: #1b3b36;
+        color: white;
+        border-radius: 10px;
+        font-weight: bold;
+        border: none;
+        padding: 10px 20px;
+        width: 100%;
+        transition: background 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #0e6251;
+        color: white;
     }
     </style>
 """,
@@ -146,7 +184,7 @@ def add_log(log_type, message):
     pass
 
 
-# المحرك الذكي لجلب العقارات الحديثة (خلال آخر شهر فقط) مع أرقام تواصل صحيحة وموثوقة
+# جلب عقارات حديثة وموثوقة
 def fetch_smart_gcc_properties():
   try:
     init_db()
@@ -213,41 +251,55 @@ def fetch_smart_gcc_properties():
 
 
 # القائمة الجانبية لإدارة الدخول
-st.sidebar.header("🔐 بوابة الإدارة والتحكم")
+st.sidebar.markdown(
+    "### 🔐 بوابة الإدارة"
+)  # استخدام markdown لتجنب مشاكل الألوان
 admin_pass = st.sidebar.text_input("كلمة مرور الإدارة:", type="password")
 is_admin = admin_pass == "GPI*2025"
 
 if is_admin:
-  st.sidebar.success("🟢 تم تفعيل وضع المشرف (Admin Mode)")
+  st.sidebar.success("🟢 وضع المشرف مفعل")
   app_mode = st.sidebar.radio(
       "اختر وضع العرض:",
-      ["🌍 عرض موقع الزوار (الرئيسي)", "⚙️ لوحة التحكم والإدارة الذكية"],
+      ["🌍 عرض منصة الزوار", "⚙️ لوحة تحكم الوسيط الذكي"],
   )
 else:
-  app_mode = "🌍 عرض موقع الزوار (الرئيسي)"
-  st.sidebar.info("💡 الموقع معروض الآن للزبائن والمستثمرين.")
+  app_mode = "🌍 عرض منصة الزوار"
+  st.sidebar.info("💡 الموقع معروض الآن للعملاء والمستثمرين.")
   fetch_smart_gcc_properties()
 
-# حساب تاريخ الحد الأدنى (أقل من شهر واحد - 30 يوماً مضت)
 one_month_ago = (datetime.now() - timedelta(days=30)).strftime(
     "%Y-%m-%d %H:%M:%S"
 )
 
 # ==========================================
-# 1. وضع الزوار والمشترين (الموقع العقاري العام الاحترافي - عقارات حديثة فقط)
+# 1. منصة الزوار والمشترين (العرض الاحترافي الفاخر)
 # ==========================================
-if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
-  st.title("🏢 شركة التخطيط العالمية للاستثمار")
-  st.markdown("### 🌟 بوابة الفرص العقارية الاستثمارية في سلطنة عمان والخليج")
+if app_mode == "🌍 عرض منصة الزوار":
   st.markdown(
-      "نرحب بكم عملائنا الكرام من **المملكة العربية السعودية، الإمارات، الكويت،"
-      " قطر، البحرين، وعمان**. نضع بين أيديكم أرقى الفرص العقارية والتجارية في"
-      " محافظة مسقط المضافة حديثاً (خلال آخر 30 يوماً) مع ضمان حفظ حقوق الوساطة"
-      " والتنسيق المباشر عبر أرقامنا الرسمية الصحيحة."
+      "<h1 style='text-align: center; color: #1b3b36; margin-bottom: 0;'>شركة"
+      " التخطيط العالمية للاستثمار</h1>",
+      unsafe_allow_html=True,
   )
-  st.markdown("---")
+  st.markdown(
+      "<h3 style='text-align: center; color: #0e6251; font-weight: 400;"
+      " margin-bottom: 30px;'>منصة الفرص العقارية الاستثمارية الفاخرة في سلطنة"
+      " عمان والخليج</h3>",
+      unsafe_allow_html=True,
+  )
 
-  col1, col2 = st.columns([2, 2])
+  # شريط ترحيب وتوضيح للعملاء الخليجيين
+  st.markdown(
+      """
+        <div style="background: linear-gradient(135deg, #1b3b36 0%, #0e6251 100%); color: white; padding: 25px; border-radius: 14px; margin-bottom: 35px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h4 style="margin-top:0; color: #ffffff;">أهلاً بكم عملائنا الكرام من دول مجلس التعاون الخليجي 🇴🇲 🇸🇦 🇦🇪 🇰🇼 🇶🇦 🇧🇭</h4>
+            <p style="margin-bottom:0; line-height: 1.6;">نضع بين أيديكم محفظة عقارية حصرية ومختارة بعناية في محافظة مسقط. جميع عروضنا معتمدة، حديثة (خلال آخر 30 يوماً)، ومضمونة الحماية لحقوق الوساطة والتنسيق المباشر.</p>
+        </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+  col1, col2 = st.columns([1, 2])
   with col1:
     filter_loc = st.selectbox(
         "📍 تصفية العقارات حسب المنطقة:",
@@ -255,7 +307,7 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
     )
 
   st.markdown("---")
-  st.subheader("📋 قائمة العقارات الاستثمارية الحديثة (المضافة خلال الشهر الحالي)")
+  st.subheader("📋 أحدث العقارات الاستثمارية المتاحة (خلال الشهر الحالي)")
 
   init_db()
   conn = sqlite3.connect(DB_NAME)
@@ -279,39 +331,53 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
   conn.close()
 
   if public_props:
-    for pp in public_props:
-      with st.container():
-        st.markdown(
-            f"""
-                <div style="background-color: #f9fbfb; border: 1px solid #d2dedc; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
-                    <h3 style="color: #1b3b36; margin-top: 0;">🏢 {pp[0]}</h3>
-                    <p><b>📍 الموقع:</b> {pp[1]} &nbsp;&nbsp;|&nbsp;&nbsp; <b>💰 السعر الاستثماري:</b> <span style="color: #0e6251; font-size: 18px;"><b>{pp[2]:,} ر.ع</b></span> (ريال عماني)</p>
-                    <p><b>📝 التفاصيل:</b> {pp[3]}</p>
-                    <p style="color: #666; font-size: 12px;">🕒 <b>تاريخ الإعلان:</b> {pp[5]} (ضمن عقارات الشهر الأخير)</p>
-                </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # عرض العقارات بنظام أعمدة متناسقة (شبكة بطاقات)
+    for i in range(0, len(public_props), 2):
+      cols = st.columns(2)
+      for j in range(2):
+        if i + j < len(public_props):
+          pp = public_props[i + j]
+          with cols[j]:
+            whatsapp_link = (
+                f"https://wa.me/{BOT_WHATSAPP.replace('+', '')}?text="
+                f"مرحباً، أهتم بالعقار ({pp[0]}) في موقع ({pp[1]}) بسعر"
+                f" ({pp[2]} ر.ع). أرجو التواصل للتفاصيل."
+            )
 
-        whatsapp_link = (
-            f"https://wa.me/{BOT_WHATSAPP.replace('+', '')}?text="
-            f"مرحباً، أهتم بالعقار ({pp[0]}) في موقع ({pp[1]}) بسعر"
-            f" ({pp[2]} ر.ع). أرجو التواصل للتفاصيل."
-        )
-        st.markdown(
-            f"[💬 للتواصل المباشر مع فريق المبيعات عبر الواتساب الصحبح"
-            f" ({BOT_WHATSAPP})]({whatsapp_link})"
-        )
-        st.markdown("---")
+            st.markdown(
+                f"""
+                    <div class="luxury-card">
+                        <h3 style="margin-top: 0; color: #1b3b36; font-size: 20px;">🏢 {pp[0]}</h3>
+                        <p style="color: #475569; margin: 8px 0;"><b>📍 الموقع:</b> {pp[1]}</p>
+                        <div style="margin: 12px 0;">
+                            <span class="price-tag">💰 {pp[2]:,} ر.ع</span>
+                        </div>
+                        <p style="color: #334155; line-height: 1.5; font-size: 14px; min-height: 45px;">{pp[3]}</p>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                            <span class="badge-date">🕒 {pp[5].split(' ')[0]}</span>
+                            <a href="{whatsapp_link}" target="_blank" style="background-color: #25d366; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 13px;">💬 تواصل واتساب</a>
+                        </div>
+                    </div>
+                """,
+                unsafe_allow_html=True,
+            )
   else:
-    st.info("لا توجد عقارات حديثة مطابقة أُضيف خلال الشهر الحالي.")
+    st.info(
+        "لا توجد عقارات حديثة مطابقة نشطة حالياً. يمكنك تسجيل رغبتك أدناه ليتم"
+        " إبلاغك فور توفر طلبك."
+    )
 
-  # قسم تسجيل رغبة المشتري بتصميم مرتب
+  # قسم تسجيل رغبة المشتري بتصميم فاخر
   st.markdown("---")
-  st.subheader("📝 سجل رغبتك الاستثمارية (لبحث العقارات المخصصة)")
   st.markdown(
-      "أدخل بياناتك وسيتولى محركنا الذكي إيجاد العقار المناسب لميزطانيتك وتطلعاتك"
-      " في مسقط."
+      "<h2 style='text-align: center; color: #1b3b36; margin-top: 30px;'>📝"
+      " سجل رغبتك الاستثمارية</h2>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='text-align: center; color: #64748b; margin-bottom: 25px;'>دع"
+      " محركنا الذكي يطابق طلبك مع أحدث الفرص العقارية في مسقط فور وصولها.</p>",
+      unsafe_allow_html=True,
   )
 
   with st.form("public_buyer_form"):
@@ -367,32 +433,35 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
 
   st.markdown("---")
   st.markdown(
-      f"📍 **عنوان الشركة:** مسقط، سلطنة عمان | 📧 **البريد الرسمي:**"
-      f" {SENDER_EMAIL} | 📱 **خدمة العملاء الرسمية:** {BOT_WHATSAPP}"
+      f"<p style='text-align: center; color: #64748b; font-size: 14px;'>📍"
+      f" مسقط، سلطنة عمان &nbsp;|&nbsp; 📧 {SENDER_EMAIL} &nbsp;|&nbsp; 📱 خدمة"
+      f" العملاء الرسمية: {BOT_WHATSAPP}</p>",
+      unsafe_allow_html=True,
   )
 
 
 # ==========================================
-# 2. وضع لوحة التحكم والإدارة (دور الوسيط الشامل)
+# 2. لوحة التحكم والإدارة الذكية (محرك الوسيط)
 # ==========================================
-elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
+elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
   st.title("⚙️ لوحة تحكم الوسيط الذكي - شركة التخطيط العالمية للاستثمار")
   st.warning(
-      "⚠️ هذه لوحة الإدارة الخاصة بك (سرية) للبحث عن المشترين وتوليد الإعلانات."
+      "⚠️ لوحة تحكم سرية خاصة بإدارة العقارات، مطابقة المشترين، وتوليد"
+      " الإعلانات التسويقية."
   )
 
   tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-      "🔍 محرك مطابقة المشترين (AI Matchmaker)",
-      "📢 صانع الإعلانات التسويقية (GCC Ads)",
-      "🏠 إدارة العقارات وأرقام الملاك (سرية)",
-      "👥 المشترين المسجلين",
-      "💰 الإيرادات والاشتراكات",
-      "➕ إضافة عقار يدوياً",
+      "🔍 مطابقة المشترين (AI Matchmaker)",
+      "📢 صانع الإعلانات (GCC Ads)",
+      "🏠 إدارة العقارات (سرية)",
+      "👥 قاعدة المستثمرين",
+      "💰 الإيرادات (بنك مسقط)",
+      "➕ إضافة عقار جديد",
   ])
 
   with tab1:
     st.subheader(
-        "🎯 مطابقة العقارات الحديثة بالبحث التلقائي عن المشترين والمستثمرين"
+        "🎯 محرك مطابقة العقارات الحديثة بالبحث التلقائي عن المشترين"
     )
     init_db()
     conn = sqlite3.connect(DB_NAME)
@@ -409,7 +478,7 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
           "اختر عقاراً حديثاً للبحث عن مشترين له:",
           [p[0] for p in properties_list],
           format_func=lambda x: next(
-              f"{p[1]} ({p[2]} - {p[3]} ر.ع) [أُضيف: {p[4]}]"
+              f"{p[1]} ({p[2]} - {p[3]} ر.ع) [تاريخ: {p[4]}]"
               for p in properties_list
               if p[0] == x
           ),
@@ -452,15 +521,15 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
         else:
           st.info(
               "لا يوجد مشترين مسجلين بنفس المواصفات حالياً. استخدم قسم (صانع"
-              " الإعلانات)."
+              " الإعلانات) لنشره."
           )
     else:
-      st.info("لا توجد عقارات حديثة (أقل من شهر) مسجلة بعد.")
+      st.info("لا توجد عقارات حديثة (خلال آخر شهر) مسجلة حالياً.")
     conn.close()
 
   with tab2:
     st.subheader(
-        "📢 صانع الإعلانات التسويقية الجاهزة (Instagram / WhatsApp / Twitter)"
+        "📢 صانع الإعلانات التسويقية الاحترافية (Instagram / WhatsApp / Twitter)"
     )
     init_db()
     conn = sqlite3.connect(DB_NAME)
@@ -488,8 +557,7 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
         chosen_p = next(ap for ap in ads_props if ap[0] == ad_choice)
 
         generated_ad_text = (
-            f"🌟 **فرصة استثمارية عقارية كبرى في مسقط (عرض جديد لعام 2026)**"
-            f" 🇴🇲\n\n"
+            f"🌟 **فرصة استثمارية عقارية كبرى في مسقط (عروض 2026)** 🇴🇲\n\n"
             f"📍 **الموقع:** {chosen_p[2]}\n"
             f"🏢 **العقار:** {chosen_p[1]}\n"
             f"💰 **السعر التنافسي:** {chosen_p[3]:,} ريال عماني\n\n"
@@ -497,7 +565,7 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
             f"✨ فرصة ممتازة للمستثمرين من سلطنة عمان وسائر دول مجلس التعاون"
             f" الخليجي (السعودية، الإمارات، الكويت، قطر، البحرين).\n\n"
             f"📞 **للتواصل المباشر مع فريق الوساطة وحجز العقار عبر الرقم"
-            f" الرسمي:**\n"
+            f" الرسمي المعتمد:**\n"
             f"واتساب الشركة: `{BOT_WHATSAPP}`\n"
             f"البريد الإلكتروني: `{SENDER_EMAIL}`\n\n"
             f"#عقارات_مسقط #استثمار_عقاري #سلطنة_عمان #عقارات_الخليج"
@@ -511,7 +579,7 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
         )
         st.success(
             "💡 نصيحة تسويقية: الإعلان يحتوي على أرقام التواصل الصحيحة والموثوقة"
-            " لجذب العملاء بدون أي خطأ."
+            " لجذب العملاء بدون أي أخطاء."
         )
     else:
       st.info(
@@ -539,7 +607,7 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
       )
 
   with tab4:
-    st.subheader("قاعدة بيانات المستثمرين المشترين")
+    st.subheader("قاعدة بيانات المستثمرين المشترين المسجلين")
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
@@ -581,7 +649,7 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
           "رقم تواصل المالك أو الوسيط المعتمد (مثال: +9689XXXXXXXX)",
           value=BOT_WHATSAPP,
       )
-      m_sub = st.form_submit_button("نشر العقار الجديد في الموقع العام")
+      m_sub = st.form_submit_button("نشر العقار الجديد في المنصة العامة")
       if m_sub and m_title:
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
@@ -603,5 +671,6 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
         conn.commit()
         conn.close()
         st.success(
-            "تم إضافة العقار بنجاح وتوثيق تاريخه كعرض حديث مع صحة أرقام التواصل!"
+            "تم إضافة العقار بنجاح وتوثيقه كعرض حديث ضمن منصة التخطيط"
+            " العالمية!"
         )
