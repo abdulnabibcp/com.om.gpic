@@ -5,7 +5,7 @@ import streamlit as st
 # استيراد البيانات الحساسة والإعدادات من الملف المنفصل
 from config import BANK_INFO, BOT_WHATSAPP, SENDER_EMAIL, SENDER_PASSWORD
 
-# كلمة المرور السرية الخاصة بلوحة تحكم المشرف (الخاصة بالشركة)
+# كلمة المرور السرية الأصلية الخاصة بكم
 ADMIN_PASSWORD = "GPI*2025"
 
 # إعداد الصفحة وتصميم الواجهة الفاخرة
@@ -159,20 +159,6 @@ def init_db():
         """)
 
     cursor.execute("""
-            CREATE TABLE IF NOT EXISTS properties (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT,
-                location TEXT,
-                price REAL,
-                details TEXT,
-                source_url TEXT,
-                owner_phone TEXT,
-                status TEXT,
-                created_at TEXT
-            )
-        """)
-
-    cursor.execute("""
             CREATE TABLE IF NOT EXISTS buyers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT,
@@ -232,30 +218,35 @@ def add_log(log_type, message):
 
 
 # ==========================================
-# القائمة الجانبية ونظام تسجيل الدخول الآمن
+# القائمة الجانبية وتسجيل الدخول ببصمة شركتكم
 # ==========================================
 st.sidebar.markdown("### 🔐 بوابة الإدارة والتحكم")
 
 if "authenticated" not in st.session_state:
   st.session_state.authenticated = False
 
-with st.sidebar.form("login_sidebar_form"):
-  st.markdown("أدخل كلمة المرور لدخول لوحة التحكم:")
-  pwd_input = st.text_input(
-      "الباسورد:", type="password", label_visibility="collapsed"
+if not st.session_state.authenticated:
+  with st.sidebar.popover("🔑 تسجيل دخول المشرف"):
+    st.markdown("أدخل كلمة المرور الخاصة بالإدارة:")
+    with st.form("admin_login_form"):
+      password_input = st.text_input(
+          "الباسورد:", type="password", key="pwd_box", label_visibility="collapsed"
+      )
+      submit_login = st.form_submit_button("تحقق ودخول")
+
+      if submit_login:
+        if password_input == ADMIN_PASSWORD:
+          st.session_state.authenticated = True
+          st.rerun()
+        else:
+          st.error("❌ كلمة المرور غير صحيحة")
+
+  app_mode = "🌍 عرض منصة الزوار"
+  st.sidebar.info(
+      "💡 الموقع معروض للعملاء. لوحة التحكم محمية بكلمة المرور الخاصة بالشركة."
   )
-  login_btn = st.form_submit_button("🔓 تسجيل الدخول")
-
-  if login_btn:
-    if pwd_input == ADMIN_PASSWORD:
-      st.session_state.authenticated = True
-      st.success("تم تسجيل الدخول بنجاح!")
-      st.rerun()
-    else:
-      st.error("❌ كلمة المرور غير صحيحة")
-
-if st.session_state.authenticated:
-  st.sidebar.success("🟢 المشرف مسجل الدخول حالياً")
+else:
+  st.sidebar.success("🟢 تم تسجيل الدخول بنجاح")
   if st.sidebar.button("🚪 تسجيل الخروج"):
     st.session_state.authenticated = False
     st.rerun()
@@ -263,12 +254,6 @@ if st.session_state.authenticated:
   app_mode = st.sidebar.radio(
       "اختر وضع العرض:",
       ["🌍 عرض منصة الزوار", "⚙️ لوحة تحكم الوسيط الذكي"],
-  )
-else:
-  app_mode = "🌍 عرض منصة الزوار"
-  st.sidebar.info(
-      "💡 الموقع معروض للزوار. أدخل كلمة المرور (GPI*2025) بالأعلى لفتح لوحة"
-      " التحكم."
   )
 
 
@@ -453,7 +438,7 @@ if app_mode == "🌍 عرض منصة الزوار":
 # ==========================================
 # 2. لوحة التحكم للمشرف (Admin Dashboard)
 # ==========================================
-elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
+elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
   st.title("⚙️ لوحة تحكم صفقات البنايات - شركة التخطيط العالمية للاستثمار")
   st.warning(
       "⚠️ لوحة تحكم سرية خاصة بإدارة البنايات، توليد رسائل الواتساب، وتعديل أو"
@@ -468,7 +453,7 @@ elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
       "💰 5. الإيرادات والعمولات",
   ])
 
-  # --- تبويب 1: إضافة بناية وتوليد رسائل (مع الدخل الشهري ورقم الاتصال) ---
+  # --- تبويب 1: إضافة بناية وتوليد رسائل ---
   with tab1:
     st.subheader(
         "➕ إضافة بناية استثمارية جديدة مع احتساب الدخل السنوي وعائد (ROI)"
@@ -511,7 +496,6 @@ elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
       )
 
       if submit_building and b_title_in:
-        # حساب الدخل السنوي والعائد الاستثماري (ROI) إلكترونياً
         calculated_annual_income = b_monthly_income_in * 12
         calculated_roi = (
             round((calculated_annual_income / b_price_in) * 100, 2)
