@@ -336,9 +336,18 @@ if app_mode == "🌍 عرض منصة الزوار":
       for j in range(2):
         if i + j < len(public_buildings):
           b_item = public_buildings[i + j]
-          b_id, b_title, b_type, b_loc, b_units, b_income, b_price, b_roi, b_maps, b_date = (
-              b_item
-          )
+          (
+              b_id,
+              b_title,
+              b_type,
+              b_loc,
+              b_units,
+              b_income,
+              b_price,
+              b_roi,
+              b_maps,
+              b_date,
+          ) = b_item
           with cols[j]:
             whatsapp_msg = (
                 f"مرحباً، أهتم بصفقة البناية ({b_title}) - نوع ({b_type}) في"
@@ -475,7 +484,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
         " فوري"
     )
 
-    with st.add_building_form := st.form("building_form"):
+    with st.form("building_form"):
       b_title_in = st.text_input(
           "عنوان البناية (مثال: بناية تجارية استثمارية بالقرم)"
       )
@@ -507,7 +516,6 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
       )
 
       if submit_building and b_title_in:
-        # حساب العائد السنوي (ROI) تلقائياً
         calculated_roi = (
             round((b_income_in / b_price_in) * 100, 2)
             if b_price_in > 0
@@ -564,7 +572,6 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
 
       if selected_b_id:
         chosen_b = next(item for item in b_list_res if item[0] == selected_b_id)
-        # تفكيك عناصر البناية
         bt, bty, bloc, buni, binc, bpr, broi, bmap = (
             chosen_b[1],
             chosen_b[2],
@@ -580,7 +587,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             f"🔥 *فرصة استثمارية عقارية كبرى (بناية للبيع)* 🔥\n\n"
             f"🏢 *{bt}*\n\n"
             f"📍 الموقع: {bloc}\n"
-            f"🏷️️ القطاع: {bty}\n"
+            f"🏷 القطاع: {bty}\n"
             f"🚪 عدد الوحدات: {buni} وحدة\n"
             f"💰 الدخل السنوي: {binc:,.2f} ر.ع\n"
             f"💵 السعر المطلوب: {bpr:,.2f} ر.ع\n"
