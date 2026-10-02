@@ -1,0 +1,3 @@
+real_estate_agent.db
+*.db
+__pycache__/
