@@ -21,76 +21,82 @@ st.set_page_config(
 DB_NAME = "real_estate_agent.db"
 
 
-# تهيئة قاعدة البيانات وضمان وجود جميع الأعمدة لتجنب أخطاء الجداول القديمة
+# تهيئة قاعدة البيانات وضمان وجود كافة الجداول والأعمدة تلقائياً
 def init_db():
-  conn = sqlite3.connect(DB_NAME)
-  cursor = conn.cursor()
+  try:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
 
-  # إنشاء جدول العقارات الأساسي
-  cursor.execute("""
-        CREATE TABLE IF NOT EXISTS properties (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            location TEXT,
-            price REAL,
-            details TEXT,
-            source_url TEXT,
-            owner_phone TEXT,
-            status TEXT,
-            created_at TEXT
-        )
-    """)
+    # 1. إنشاء جدول العقارات الأساسي
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS properties (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
+                location TEXT,
+                price REAL,
+                details TEXT,
+                source_url TEXT,
+                owner_phone TEXT,
+                status TEXT,
+                created_at TEXT
+            )
+        """)
 
-  # التحقق من وجود عمود owner_phone وإضافته إذا كان مفقوداً في قواعد بيانات قديمة
-  cursor.execute("PRAGMA table_info(properties)")
-  columns = [col[1] for col in cursor.fetchall()]
-  if "owner_phone" not in columns:
-    cursor.execute("ALTER TABLE properties ADD COLUMN owner_phone TEXT")
+    # التحقق من وجود عمود owner_phone
+    cursor.execute("PRAGMA table_info(properties)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "owner_phone" not in columns:
+      cursor.execute("ALTER TABLE properties ADD COLUMN owner_phone TEXT")
 
-  # إنشاء جدول المشترين
-  cursor.execute("""
-        CREATE TABLE IF NOT EXISTS buyers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            phone TEXT,
-            email TEXT,
-            country TEXT,
-            preferred_location TEXT,
-            max_budget REAL
-        )
-    """)
+    # 2. إنشاء جدول المشترين والمستثمرين
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS buyers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                phone TEXT,
+                email TEXT,
+                country TEXT,
+                preferred_location TEXT,
+                max_budget REAL
+            )
+        """)
 
-  # إنشاء جدول الاشتراكات والإيرادات
-  cursor.execute("""
-        CREATE TABLE IF NOT EXISTS subscriptions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            office_name TEXT,
-            owner_name TEXT,
-            phone TEXT,
-            plan_type TEXT,
-            amount_paid REAL,
-            payment_status TEXT,
-            created_at TEXT
-        )
-    """)
+    # 3. إنشاء جدول الاشتراكات والإيرادات
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                office_name TEXT,
+                owner_name TEXT,
+                phone TEXT,
+                plan_type TEXT,
+                amount_paid REAL,
+                payment_status TEXT,
+                created_at TEXT
+            )
+        """)
 
-  # إنشاء جدول السجلات الحية
-  cursor.execute("""
-        CREATE TABLE IF NOT EXISTS activity_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            log_type TEXT,
-            message TEXT
-        )
-    """)
-  conn.commit()
-  conn.close()
+    # 4. إنشاء جدول السجلات الحية
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                log_type TEXT,
+                message TEXT
+            )
+        """)
+
+    conn.commit()
+    conn.close()
+  except Exception as e:
+    print(f"خطأ في التهيئة: {e}")
 
 
+# تشغيل التهيئة فوراً عند بدء تشغيل التطبيق
 init_db()
 
 
 def add_log(log_type, message):
+  init_db()
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
   timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -125,6 +131,7 @@ def send_email_notification(receiver_email, subject, body):
 # المحرك الذكي المتقدم لجلب العقارات مع أرقام التواصل الحقيقية للمالك
 def fetch_smart_gcc_properties():
   try:
+    init_db()
     sample_listings = [
         (
             "أرض استثمارية كبرى في مسقط هيلز",
@@ -258,13 +265,17 @@ with tab1:
   if st.button("🔄 تحديث السجلات"):
     st.rerun()
 
+  init_db()
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
-  cursor.execute(
-      "SELECT timestamp, log_type, message FROM activity_logs ORDER BY id DESC"
-      " LIMIT 50"
-  )
-  logs = cursor.fetchall()
+  try:
+    cursor.execute(
+        "SELECT timestamp, log_type, message FROM activity_logs ORDER BY id"
+        " DESC LIMIT 50"
+    )
+    logs = cursor.fetchall()
+  except sqlite3.OperationalError:
+    logs = []
   conn.close()
 
   for timestamp, l_type, msg in logs:
@@ -277,18 +288,17 @@ with tab1:
 
 with tab2:
   st.subheader("قائمة العقارات المستوردة مع أرقام التواصل المباشرة")
-  st.markdown(
-      "هنا يعرض لك البرنامج العقار مع **رقم تواصل المالك أو المعلن الأصلي**"
-      " لتتمكن من التحدث معه مباشرة في أي وقت."
-  )
-
+  init_db()
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
-  cursor.execute(
-      "SELECT title, location, price, details, source_url, owner_phone,"
-      " created_at FROM properties ORDER BY id DESC"
-  )
-  props = cursor.fetchall()
+  try:
+    cursor.execute(
+        "SELECT title, location, price, details, source_url, owner_phone,"
+        " created_at FROM properties ORDER BY id DESC"
+    )
+    props = cursor.fetchall()
+  except sqlite3.OperationalError:
+    props = []
   conn.close()
 
   if props:
@@ -310,35 +320,14 @@ with tab2:
 
 with tab3:
   st.subheader("🌐 صفحة العرض العام المجانية (موجهة لأسواق دول الخليج)")
-  st.markdown(
-      "هذه واجهة مصغرة تعمل كـ **موقع إلكتروني مجاني** لعرض العقارات للزوار"
-      " والمستثمرين القادمين من السعودية، الامارات، وسائر دول الخليج."
-  )
-
-  col1, col2 = st.columns(2)
-  with col1:
-    selected_gcc_country = st.selectbox(
-        "تصفية حسب مستثمري الدولة:",
-        [
-            "الكل (الخليج العربي)",
-            "المملكة العربية السعودية",
-            "دولة الإمارات العربية المتحدة",
-            "دولة الكويت",
-            "دولة قطر",
-            "مملكة البحرين",
-        ],
-    )
-  with col2:
-    st.success(
-        "💡 نصيحة تسويقية: شارك رابط هذه الصفحة في منصات التواصل أو مجموعات"
-        " الاستثمار العقاري الخليجي لجذب رؤوس الأموال!"
-    )
-
-  st.markdown("---")
+  init_db()
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
-  cursor.execute("SELECT title, location, price, details FROM properties")
-  public_props = cursor.fetchall()
+  try:
+    cursor.execute("SELECT title, location, price, details FROM properties")
+    public_props = cursor.fetchall()
+  except sqlite3.OperationalError:
+    public_props = []
   conn.close()
 
   for pp in public_props:
@@ -350,13 +339,17 @@ with tab3:
 
 with tab4:
   st.subheader("قاعدة بيانات المشترين والمستثمرين الخليجيين والمحليين")
+  init_db()
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
-  cursor.execute(
-      "SELECT name, phone, email, country, preferred_location, max_budget FROM"
-      " buyers"
-  )
-  buyers = cursor.fetchall()
+  try:
+    cursor.execute(
+        "SELECT name, phone, email, country, preferred_location, max_budget"
+        " FROM buyers"
+    )
+    buyers = cursor.fetchall()
+  except sqlite3.OperationalError:
+    buyers = []
   conn.close()
 
   if buyers:
@@ -375,15 +368,23 @@ with tab5:
       f" {BANK_INFO['account_holder']} | الآيبان: `{BANK_INFO['iban']}`"
   )
 
+  init_db()
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
-  cursor.execute(
-      "SELECT office_name, plan_type, amount_paid, payment_status, created_at"
-      " FROM subscriptions ORDER BY id DESC"
-  )
-  subs = cursor.fetchall()
-  cursor.execute("SELECT SUM(amount_paid) FROM subscriptions WHERE payment_status = 'تم التحويل للحساب البنكي'")
-  total_rev = cursor.fetchone()[0] or 0.0
+  try:
+    cursor.execute(
+        "SELECT office_name, plan_type, amount_paid, payment_status, created_at"
+        " FROM subscriptions ORDER BY id DESC"
+    )
+    subs = cursor.fetchall()
+    cursor.execute(
+        "SELECT SUM(amount_paid) FROM subscriptions WHERE payment_status = 'تم"
+        " التحويل للحساب البنكي'"
+    )
+    total_rev = cursor.fetchone()[0] or 0.0
+  except sqlite3.OperationalError:
+    subs = []
+    total_rev = 0.0
   conn.close()
 
   st.metric(
@@ -425,6 +426,7 @@ with tab6:
     submit_buyer = st.form_submit_button("حفظ المستثمر في النظام الذكي")
 
     if submit_buyer and b_name:
+      init_db()
       conn = sqlite3.connect(DB_NAME)
       c = conn.cursor()
       c.execute(
