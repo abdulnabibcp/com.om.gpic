@@ -142,12 +142,13 @@ st.markdown(
 DB_NAME = "real_estate_agent.db"
 
 
-# تهيئة قاعدة البيانات تلقائياً
+# تهيئة قاعدة البيانات والتأكد من وجود كافة الأعمدة تلقائياً
 def init_db():
   try:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
+    # جدول العقارات
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS properties (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,11 +163,7 @@ def init_db():
             )
         """)
 
-    cursor.execute("PRAGMA table_info(properties)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if "owner_phone" not in columns:
-      cursor.execute("ALTER TABLE properties ADD COLUMN owner_phone TEXT")
-
+    # جدول المشترين
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS buyers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -179,6 +176,7 @@ def init_db():
             )
         """)
 
+    # جدول الاشتراكات
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS subscriptions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -192,6 +190,7 @@ def init_db():
             )
         """)
 
+    # جدول سجل النشاطات
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS activity_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -200,6 +199,20 @@ def init_db():
                 message TEXT
             )
         """)
+
+    # فحص وإضافة الأعمدة الناقصة للمشترين (في حال كان الجدول قديماً)
+    cursor.execute("PRAGMA table_info(buyers)")
+    buyer_columns = [col[1] for col in cursor.fetchall()]
+    if "country" not in buyer_columns:
+      cursor.execute("ALTER TABLE buyers ADD COLUMN country TEXT")
+    if "email" not in buyer_columns:
+      cursor.execute("ALTER TABLE buyers ADD COLUMN email TEXT")
+
+    # فحص وإضافة الأعمدة الناقصة للعقارات
+    cursor.execute("PRAGMA table_info(properties)")
+    prop_columns = [col[1] for col in cursor.fetchall()]
+    if "owner_phone" not in prop_columns:
+      cursor.execute("ALTER TABLE properties ADD COLUMN owner_phone TEXT")
 
     conn.commit()
     conn.close()
