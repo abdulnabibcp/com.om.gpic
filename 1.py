@@ -148,9 +148,11 @@ def init_db():
                 type TEXT,
                 location TEXT,
                 units_count INTEGER,
+                monthly_income REAL,
                 annual_income REAL,
                 price REAL,
                 roi REAL,
+                owner_phone TEXT,
                 google_maps TEXT,
                 created_at TEXT
             )
@@ -230,14 +232,13 @@ def add_log(log_type, message):
 
 
 # ==========================================
-# القائمة الجانبية ونظام تسجيل الدخول الآمن المحدث
+# القائمة الجانبية ونظام تسجيل الدخول الآمن
 # ==========================================
 st.sidebar.markdown("### 🔐 بوابة الإدارة والتحكم")
 
 if "authenticated" not in st.session_state:
   st.session_state.authenticated = False
 
-# نظام التحقق المباشر في القائمة الجانبية
 with st.sidebar.form("login_sidebar_form"):
   st.markdown("أدخل كلمة المرور لدخول لوحة التحكم:")
   pwd_input = st.text_input(
@@ -272,7 +273,7 @@ else:
 
 
 # ==========================================
-# 1. منصة الزوار (عرض البنايات الاستثمارية والعقارات)
+# 1. منصة الزوار (عرض البنايات الاستثمارية)
 # ==========================================
 if app_mode == "🌍 عرض منصة الزوار":
   st.markdown(
@@ -311,14 +312,15 @@ if app_mode == "🌍 عرض منصة الزوار":
     cursor = conn.cursor()
     if b_filter_type == "الكل":
       cursor.execute(
-          "SELECT id, title, type, location, units_count, annual_income,"
-          " price, roi, google_maps, created_at FROM buildings ORDER BY id DESC"
+          "SELECT id, title, type, location, units_count, monthly_income,"
+          " annual_income, price, roi, owner_phone, google_maps, created_at FROM"
+          " buildings ORDER BY id DESC"
       )
     else:
       cursor.execute(
-          "SELECT id, title, type, location, units_count, annual_income,"
-          " price, roi, google_maps, created_at FROM buildings WHERE type = ?"
-          " ORDER BY id DESC",
+          "SELECT id, title, type, location, units_count, monthly_income,"
+          " annual_income, price, roi, owner_phone, google_maps, created_at FROM"
+          " buildings WHERE type = ? ORDER BY id DESC",
           (b_filter_type,),
       )
     public_buildings = cursor.fetchall()
@@ -338,13 +340,16 @@ if app_mode == "🌍 عرض منصة الزوار":
               b_type,
               b_loc,
               b_units,
-              b_income,
+              b_mincome,
+              b_aincome,
               b_price,
               b_roi,
+              b_ophone,
               b_maps,
               b_date,
           ) = b_item
           with cols[j]:
+            contact_number = b_ophone if b_ophone else BOT_WHATSAPP
             whatsapp_msg = (
                 f"مرحباً، أهتم بصفقة البناية ({b_title}) - نوع ({b_type}) في"
                 f" ({b_loc}) بسعر ({b_price:,.2f} ر.ع) وعائد ({b_roi}%). أرجو"
@@ -352,7 +357,7 @@ if app_mode == "🌍 عرض منصة الزوار":
             )
             import urllib.parse
 
-            wa_link = f"https://wa.me/{BOT_WHATSAPP.replace('+', '')}?text={urllib.parse.quote(whatsapp_msg)}"
+            wa_link = f"https://wa.me/{contact_number.replace('+', '').replace(' ', '')}?text={urllib.parse.quote(whatsapp_msg)}"
 
             st.markdown(
                 f"""
@@ -364,7 +369,7 @@ if app_mode == "🌍 عرض منصة الزوار":
                         </div>
                         <div class="card-details">
                             🚪 عدد الوحدات: <b>{b_units}</b><br>
-                            💵 الدخل السنوي: <b>{b_income:,.2f} ر.ع</b><br>
+                            💵 الدخل الشهري: <b>{b_mincome:,.2f} ر.ع</b> | السنوي: <b>{b_aincome:,.2f} ر.ع</b><br>
                             📈 العائد السنوي (ROI): <b>~{b_roi}%</b>
                         </div>
                         <div style="margin-bottom: 14px;">
@@ -448,7 +453,7 @@ if app_mode == "🌍 عرض منصة الزوار":
 # ==========================================
 # 2. لوحة التحكم للمشرف (Admin Dashboard)
 # ==========================================
-elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
+elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
   st.title("⚙️ لوحة تحكم صفقات البنايات - شركة التخطيط العالمية للاستثمار")
   st.warning(
       "⚠️ لوحة تحكم سرية خاصة بإدارة البنايات، توليد رسائل الواتساب، وتعديل أو"
@@ -463,11 +468,11 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
       "💰 5. الإيرادات والعمولات",
   ])
 
-  # --- تبويب 1: إضافة بناية وتوليد رسائل ---
+  # --- تبويب 1: إضافة بناية وتوليد رسائل (مع الدخل الشهري ورقم الاتصال) ---
   with tab1:
     st.subheader(
-        "➕ إضافة بناية استثمارية جديدة (سكني، تجاري، صناعي) مع توليد واتساب"
-        " فوري"
+        "➕ إضافة بناية استثمارية جديدة مع احتساب الدخل السنوي وعائد (ROI)"
+        " إلكترونياً"
     )
 
     with st.form("building_form"):
@@ -483,9 +488,13 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
         b_units_in = st.number_input(
             "عدد الشقق / المحلات / الورش:", value=12, step=1
         )
+        b_ophone_in = st.text_input(
+            "رقم تواصل المالك أو الوسيط المعتمد (مثال: +9689XXXXXXXX)",
+            value=BOT_WHATSAPP,
+        )
       with col_b2:
-        b_income_in = st.number_input(
-            "الدخل السنوي الإجمالي (ريال عماني):", value=36000.0, step=1000.0
+        b_monthly_income_in = st.number_input(
+            "الدخل الشهري الإجمالي (ريال عماني):", value=3000.0, step=100.0
         )
         b_price_in = st.number_input(
             "السعر المطلوب للصفقة (ريال عماني):",
@@ -502,8 +511,10 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
       )
 
       if submit_building and b_title_in:
+        # حساب الدخل السنوي والعائد الاستثماري (ROI) إلكترونياً
+        calculated_annual_income = b_monthly_income_in * 12
         calculated_roi = (
-            round((b_income_in / b_price_in) * 100, 2)
+            round((calculated_annual_income / b_price_in) * 100, 2)
             if b_price_in > 0
             else 0.0
         )
@@ -511,17 +522,19 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
           conn = get_db_connection()
           cursor = conn.cursor()
           cursor.execute(
-              "INSERT INTO buildings (title, type, location, units_count,"
-              " annual_income, price, roi, google_maps, created_at) VALUES (?,"
-              " ?, ?, ?, ?, ?, ?, ?, ?)",
+              """INSERT INTO buildings (title, type, location, units_count, monthly_income, 
+                                     annual_income, price, roi, owner_phone, google_maps, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
               (
                   b_title_in,
                   b_type_in,
                   b_loc_in,
                   b_units_in,
-                  b_income_in,
+                  b_monthly_income_in,
+                  calculated_annual_income,
                   b_price_in,
                   calculated_roi,
+                  b_ophone_in,
                   b_maps_in,
                   datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
               ),
@@ -529,7 +542,9 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
           conn.commit()
           conn.close()
           st.success(
-              f"✅ تم حفظ البناية بنجاح! العائد المحسوب (ROI): {calculated_roi}%"
+              f"✅ تم حفظ البناية بنجاح! الدخل السنوي المحسوب:"
+              f" {calculated_annual_income:,.2f} ر.ع | العائد (ROI):"
+              f" {calculated_roi}%"
           )
         except Exception as e:
           st.error(f"خطأ أثناء الحفظ: {e}")
@@ -540,8 +555,9 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
       conn = get_db_connection()
       cursor = conn.cursor()
       cursor.execute(
-          "SELECT id, title, type, location, units_count, annual_income, price,"
-          " roi, google_maps FROM buildings ORDER BY id DESC"
+          "SELECT id, title, type, location, units_count, monthly_income,"
+          " annual_income, price, roi, owner_phone, google_maps FROM buildings"
+          " ORDER BY id DESC"
       )
       b_list_res = cursor.fetchall()
       conn.close()
@@ -553,7 +569,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
           "اختر البناية لتوليد رسالة واتساب:",
           [item[0] for item in b_list_res],
           format_func=lambda x: next(
-              f"{item[1]} ({item[2]} - {item[6]:,.2f} ر.ع)"
+              f"{item[1]} ({item[2]} - {item[7]:,.2f} ر.ع)"
               for item in b_list_res
               if item[0] == x
           ),
@@ -561,7 +577,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
 
       if selected_b_id:
         chosen_b = next(item for item in b_list_res if item[0] == selected_b_id)
-        bt, bty, bloc, buni, binc, bpr, broi, bmap = (
+        bt, bty, bloc, buni, bminc, bainc, bpr, broi, bophone, bmap = (
             chosen_b[1],
             chosen_b[2],
             chosen_b[3],
@@ -570,22 +586,25 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             chosen_b[6],
             chosen_b[7],
             chosen_b[8],
+            chosen_b[9],
+            chosen_b[10],
         )
 
+        contact_num = bophone if bophone else BOT_WHATSAPP
         ready_wa_text = (
             f"🔥 *فرصة استثمارية عقارية كبرى (بناية للبيع)* 🔥\n\n"
             f"🏢 *{bt}*\n\n"
             f"📍 الموقع: {bloc}\n"
             f"🏷 القطاع: {bty}\n"
             f"🚪 عدد الوحدات: {buni} وحدة\n"
-            f"💰 الدخل السنوي: {binc:,.2f} ر.ع\n"
+            f"💵 الدخل الشهري: {bminc:,.2f} ر.ع (السنوي: {bainc:,.2f} ر.ع)\n"
             f"💵 السعر المطلوب: {bpr:,.2f} ر.ع\n"
             f"📈 العائد السنوي (ROI): ~{broi}%\n\n"
             f"📍 *رابط الموقع على الخريطة مباشرة:*\n"
             f"{bmap}\n\n"
-            f"📞 *للتواصل وحجز الصفقة مع شركة التخطيط العالمية للاستثمار:*\n"
-            f"واتساب رسمي: `{BOT_WHATSAPP}`\n"
-            f"إيميل: `{SENDER_EMAIL}`\n\n"
+            f"📞 *للتواصل وحجز الصفقة مع مسؤول البناية مباشرة:*\n"
+            f"هاتف التواصل / واتساب: `{contact_num}`\n"
+            f"البريد الإلكتروني: `{SENDER_EMAIL}`\n\n"
             f"#عقارات_مسقط #بنايات_للبيع #استثمار_عقاري #سلطنة_عمان"
             f" #شركة_التخطيط_العالمية"
         )
@@ -593,9 +612,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
         st.text_area("نسخ النص التسويقي للواتساب:", ready_wa_text, height=220)
         import urllib.parse
 
-        direct_link = (
-            f"https://wa.me/?text={urllib.parse.quote(ready_wa_text)}"
-        )
+        direct_link = f"https://wa.me/{contact_num.replace('+', '').replace(' ', '')}?text={urllib.parse.quote(ready_wa_text)}"
         st.markdown(
             f"[💬 اضغط هنا لفتح واتساب ومشاركة الرسالة مباشرة]"
             f"({direct_link})"
@@ -612,8 +629,8 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
       conn = get_db_connection()
       cursor = conn.cursor()
       cursor.execute(
-          "SELECT id, title, type, location, units_count, annual_income, price,"
-          " google_maps FROM buildings ORDER BY id DESC"
+          "SELECT id, title, type, location, units_count, monthly_income,"
+          " price, owner_phone, google_maps FROM buildings ORDER BY id DESC"
       )
       edit_buildings = cursor.fetchall()
       conn.close()
@@ -641,8 +658,9 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             eb_type,
             eb_loc,
             eb_units,
-            eb_income,
+            eb_mincome,
             eb_price,
+            eb_ophone,
             eb_maps,
         ) = current_b
 
@@ -662,12 +680,16 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             new_units = st.number_input(
                 "عدد الوحدات:", value=int(eb_units), step=1
             )
+            new_ophone = st.text_input(
+                "رقم تواصل المالك:",
+                value=eb_ophone if eb_ophone else BOT_WHATSAPP,
+            )
           with col_e2:
-            new_income = st.number_input(
-                "الدخل السنوي (ر.ع):", value=float(eb_income), step=1000.0
+            new_mincome = st.number_input(
+                "الدخل الشهري (ر.ع):", value=float(eb_mincome), step=50.0
             )
             new_price = st.number_input(
-                "السعر المطلوبة (ر.ع):", value=float(eb_price), step=10000.0
+                "السعر المطلوب (ر.ع):", value=float(eb_price), step=10000.0
             )
             new_maps = st.text_input("رابط الخريطة:", value=eb_maps)
 
@@ -678,8 +700,9 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             submit_delete = st.form_submit_button("🗑️ حذف هذه البناية نهائياً")
 
           if submit_update:
+            new_aincome = new_mincome * 12
             calc_roi = (
-                round((new_income / new_price) * 100, 2)
+                round((new_aincome / new_price) * 100, 2)
                 if new_price > 0
                 else 0.0
             )
@@ -688,24 +711,24 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
               cursor = conn.cursor()
               cursor.execute(
                   """UPDATE buildings SET title=?, type=?, location=?, units_count=?, 
-                                     annual_income=?, price=?, roi=?, google_maps=? WHERE id=?""",
+                                     monthly_income=?, annual_income=?, price=?, roi=?, 
+                                     owner_phone=?, google_maps=? WHERE id=?""",
                   (
                       new_title,
                       new_type,
                       new_loc,
                       new_units,
-                      new_income,
+                      new_mincome,
+                      new_aincome,
                       new_price,
                       calc_roi,
+                      new_ophone,
                       new_maps,
                       eb_id,
                   ),
               )
               conn.commit()
               conn.close()
-              add_log(
-                  "ADMIN", f"تم تعديل بيانات البناية ID: {eb_id} ({new_title})"
-              )
               st.success("✨ تم تحديث بيانات البناية بنجاح!")
               st.rerun()
             except Exception as err_up:
@@ -718,7 +741,6 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
               cursor.execute("DELETE FROM buildings WHERE id=?", (eb_id,))
               conn.commit()
               conn.close()
-              add_log("ADMIN", f"تم حذف البناية ID: {eb_id}")
               st.success("🗑️ تم حذف البناية بنجاح من النظام!")
               st.rerun()
             except Exception as err_del:
@@ -763,7 +785,6 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
               cursor.execute("DELETE FROM buyers WHERE id=?", (ab_id,))
               conn.commit()
               conn.close()
-              add_log("ADMIN", f"تم حذف المستثمر ID: {ab_id} ({ab_name})")
               st.success("🗑️ تم حذف بيانات المستثمر بنجاح!")
               st.rerun()
             except Exception as e_b:
@@ -787,8 +808,9 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
         cursor = conn.cursor()
         if exp_choice == "قائمة البنايات الاستثمارية":
           cursor.execute(
-              "SELECT id, title, type, location, units_count, annual_income,"
-              " price, roi, google_maps, created_at FROM buildings"
+              "SELECT id, title, type, location, units_count, monthly_income,"
+              " annual_income, price, roi, owner_phone, google_maps, created_at"
+              " FROM buildings"
           )
           rows = cursor.fetchall()
           df_exp = pd.DataFrame(
@@ -799,9 +821,11 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
                   "النوع",
                   "الموقع",
                   "الوحدات",
+                  "الدخل الشهري",
                   "الدخل السنوي",
                   "السعر",
                   "العائد %",
+                  "رقم المالك",
                   "خرائط جوجل",
                   "تاريخ الإضافة",
               ],
@@ -812,10 +836,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
               "SELECT id, name, phone, email, country, preferred_location,"
               " max_budget, deal_status FROM buyers"
           )
-          rows, fname = (
-              cursor.fetchall(),
-              "investors_report.csv",
-          )  # تم تصحيح بناء الاستعلام
+          rows = cursor.fetchall()
           df_exp = pd.DataFrame(
               rows,
               columns=[
@@ -829,6 +850,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
                   "الحالة",
               ],
           )
+          fname = "investors_report.csv"
         conn.close()
 
         csv_bytes = df_exp.to_csv(index=False).encode("utf-8-sig")
