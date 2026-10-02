@@ -132,19 +132,15 @@ st.markdown(
 )
 
 
-# دالة الاتصال بقاعدة البيانات المحلية الآمنة لتجنب أخطاء الـ URL نهائياً
 def get_db_connection():
-  conn = sqlite3.connect("gpic_buildings.db")
-  return conn
+  return sqlite3.connect("gpic_buildings.db")
 
 
-# تهيئة الجداول في قاعدة البيانات
 def init_db():
   try:
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # جدول البنايات الاستثمارية (سكني، تجاري، صناعي)
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS buildings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -259,8 +255,7 @@ if not st.session_state.authenticated:
 
   app_mode = "🌍 عرض منصة الزوار"
   st.sidebar.info(
-      "💡 الموقع معروض حصرياً للعملاء. لوحة التحكم محمية بكلمة المرور الخاصة"
-      " بالشركة."
+      "💡 الموقع معروض للعملاء. لوحة التحكم محمية بكلمة المرور الخاصة بالشركة."
   )
 else:
   st.sidebar.success("🟢 تم تسجيل الدخول بنجاح")
@@ -300,7 +295,6 @@ if app_mode == "🌍 عرض منصة الزوار":
       unsafe_allow_html=True,
   )
 
-  # فلترة البنايات حسب النوع
   b_filter_type = st.selectbox(
       "🏢 تصفية صفقات البنايات حسب القطاع:",
       ["الكل", "سكنية", "تجارية", "صناعية"],
@@ -383,12 +377,8 @@ if app_mode == "🌍 عرض منصة الزوار":
                 unsafe_allow_html=True,
             )
   else:
-    st.info(
-        "لا توجد بنايات استثمارية معروضة حالياً. تابعنا قريباً لأحدث صفقات"
-        " البنايات."
-    )
+    st.info("لا توجد بنايات استثمارية معروضة حالياً.")
 
-  # قسم تسجيل رغبة المستثمر
   st.markdown("---")
   st.markdown(
       "<h2 style='text-align: center; color: #1b3b36; margin-top: 30px;'>📝"
@@ -448,15 +438,7 @@ if app_mode == "🌍 عرض منصة الزوار":
         )
         conn.commit()
         conn.close()
-        add_log(
-            "SYSTEM",
-            f"طلب استثمار بناية من ({bp_country}): {bp_name} بميزانية {bp_budget}"
-            " ر.ع",
-        )
-        st.success(
-            "تم استلام طلبكم بنجاح! سيتواصل معكم خبير صفقات البنايات بـ شركة"
-            " التخطيط العالمية قريباً."
-        )
+        st.success("تم استلام طلبكم بنجاح وسيتواصل معكم فريق الشركة قريباً.")
       except Exception as ex:
         st.error(f"حدث خطأ أثناء حفظ الطلب: {ex}")
 
@@ -464,22 +446,22 @@ if app_mode == "🌍 عرض منصة الزوار":
 # ==========================================
 # 2. لوحة التحكم للمشرف (Admin Dashboard)
 # ==========================================
-elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
+elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
   st.title("⚙️ لوحة تحكم صفقات البنايات - شركة التخطيط العالمية للاستثمار")
   st.warning(
-      "⚠️ لوحة تحكم سرية خاصة بإدارة البنايات الاستثمارية، توليد رسائل الواتساب،"
-      " وإدارة المستثمرين."
+      "⚠️ لوحة تحكم سرية خاصة بإدارة البنايات، توليد رسائل الواتساب، وتعديل أو"
+      " حذف السجلات."
   )
 
   tab1, tab2, tab3, tab4, tab5 = st.tabs([
-      "🏢 1. إضافة وتوليد رسائل واتساب للبنايات (جديد)",
-      "📋 2. إدارة وعرض البنايات المسجلة",
-      "👥 3. قاعدة المستثمرين والمشترين",
+      "🏢 1. إضافة وتوليد واتساب للبنايات",
+      "✏️ 2. تعديل وحذف البنايات (جديد)",
+      "👥 3. إدارة وحذف المستثمرين",
       "📥 4. تصدير التقارير (CSV)",
-      "💰 5. الإيرادات والعمولات (بنك مسقط)",
+      "💰 5. الإيرادات والعمولات",
   ])
 
-  # --- تبويب 1: إضافة بناية وتوليد رسائل واتساب ---
+  # --- تبويب 1: إضافة بناية وتوليد رسائل ---
   with tab1:
     st.subheader(
         "➕ إضافة بناية استثمارية جديدة (سكني، تجاري، صناعي) مع توليد واتساب"
@@ -551,7 +533,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
           st.error(f"خطأ أثناء الحفظ: {e}")
 
     st.markdown("---")
-    st.subheader("📲 توليد رسالة واتساب جاهزة للبنايات المسجلة للإرسال الفوري")
+    st.subheader("📲 توليد رسالة واتساب جاهزة للبنايات المسجلة")
     try:
       conn = get_db_connection()
       cursor = conn.cursor()
@@ -599,7 +581,6 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             f"📈 العائد السنوي (ROI): ~{broi}%\n\n"
             f"📍 *رابط الموقع على الخريطة مباشرة:*\n"
             f"{bmap}\n\n"
-            f"---وارسلوها للمستثمرين والوسطاء---\n"
             f"📞 *للتواصل وحجز الصفقة مع شركة التخطيط العالمية للاستثمار:*\n"
             f"واتساب رسمي: `{BOT_WHATSAPP}`\n"
             f"إيميل: `{SENDER_EMAIL}`\n\n"
@@ -607,9 +588,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             f" #شركة_التخطيط_العالمية"
         )
 
-        st.text_area(
-            "نسخ النص التسويقي الجاهز للواتساب:", ready_wa_text, height=250
-        )
+        st.text_area("نسخ النص التسويقي للواتساب:", ready_wa_text, height=220)
         import urllib.parse
 
         direct_link = (
@@ -620,63 +599,179 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             f"({direct_link})"
         )
     else:
-      st.info("لا توجد بنايات مسجلة لتوليد رسائل لها حتى الآن.")
+      st.info("لا توجد بنايات مسجلة حالياً.")
 
-  # --- تبويب 2: إدارة وعرض البنايات المسجلة ---
+  # --- تبويب 2 (خاصية جديدة): تعديل وحذف البنايات ---
   with tab2:
-    st.subheader("🏠 قائمة البنايات الاستثمارية المسجلة (سرية للوسيط)")
+    st.subheader(
+        "✏️ إدارة، تعديل، أو حذف البنايات الاستثمارية المسجلة في النظام"
+    )
     try:
       conn = get_db_connection()
       cursor = conn.cursor()
       cursor.execute(
           "SELECT id, title, type, location, units_count, annual_income, price,"
-          " roi, created_at FROM buildings ORDER BY id DESC"
+          " google_maps FROM buildings ORDER BY id DESC"
       )
-      all_buildings = cursor.fetchall()
+      edit_buildings = cursor.fetchall()
       conn.close()
     except:
-      all_buildings = []
+      edit_buildings = []
 
-    if all_buildings:
-      for ab in all_buildings:
-        st.markdown(
-            f"- **{ab[1]}** | النوع: `{ab[2]}` | الموقع: `{ab[3]}` | الوحدات:"
-            f" `{ab[4]}` | الدخل: `{ab[5]:,.2f} ر.ع` | السعر: `{ab[6]:,.2f} ر.ع`"
-            f" | العائد: `~{ab[7]}%` | 🕒 الإضافة: `{ab[8]}`"
+    if edit_buildings:
+      selected_edit_id = st.selectbox(
+          "اختر البناية المراد تعديلها أو حذفها:",
+          [eb[0] for eb in edit_buildings],
+          format_func=lambda x: next(
+              f"ID: {eb[0]} | {eb[1]} ({eb[2]} - {eb[3]})"
+              for eb in edit_buildings
+              if eb[0] == x
+          ),
+      )
+
+      if selected_edit_id:
+        current_b = next(
+            eb for eb in edit_buildings if eb[0] == selected_edit_id
         )
-    else:
-      st.info("لا توجد بنايات مضافة في النظام حالياً.")
+        (
+            eb_id,
+            eb_title,
+            eb_type,
+            eb_loc,
+            eb_units,
+            eb_income,
+            eb_price,
+            eb_maps,
+        ) = current_b
 
-  # --- تبويب 3: قاعدة المستثمرين ---
+        with st.form(f"edit_building_form_{eb_id}"):
+          st.markdown(f"### تعديل بيانات البناية (ID: {eb_id})")
+          new_title = st.text_input("عنوان البناية:", value=eb_title)
+          col_e1, col_e2 = st.columns(2)
+          with col_e1:
+            new_type = st.selectbox(
+                "القطاع:",
+                ["سكنية", "تجارية", "صناعية"],
+                index=["سكنية", "تجارية", "صناعية"].index(eb_type)
+                if eb_type in ["سكنية", "تجارية", "صناعية"]
+                else 0,
+            )
+            new_loc = st.text_input("الموقع:", value=eb_loc)
+            new_units = st.number_input(
+                "عدد الوحدات:", value=int(eb_units), step=1
+            )
+          with col_e2:
+            new_income = st.number_input(
+                "الدخل السنوي (ر.ع):", value=float(eb_income), step=1000.0
+            )
+            new_price = st.number_input(
+                "السعر المطلوبة (ر.ع):", value=float(eb_price), step=10000.0
+            )
+            new_maps = st.text_input("رابط الخريطة:", value=eb_maps)
+
+          col_btn1, col_btn2 = st.columns(2)
+          with col_btn1:
+            submit_update = st.form_submit_button("💾 حفظ التعديلات")
+          with col_btn2:
+            submit_delete = st.form_submit_button("🗑️ حذف هذه البناية نهائياً")
+
+          if submit_update:
+            calc_roi = (
+                round((new_income / new_price) * 100, 2)
+                if new_price > 0
+                else 0.0
+            )
+            try:
+              conn = get_db_connection()
+              cursor = conn.cursor()
+              cursor.execute(
+                  """UPDATE buildings SET title=?, type=?, location=?, units_count=?, 
+                                     annual_income=?, price=?, roi=?, google_maps=? WHERE id=?""",
+                  (
+                      new_title,
+                      new_type,
+                      new_loc,
+                      new_units,
+                      new_income,
+                      new_price,
+                      calc_roi,
+                      new_maps,
+                      eb_id,
+                  ),
+              )
+              conn.commit()
+              conn.close()
+              add_log(
+                  "ADMIN", f"تم تعديل بيانات البناية ID: {eb_id} ({new_title})"
+              )
+              st.success("✨ تم تحديث بيانات البناية بنجاح!")
+              st.rerun()
+            except Exception as err_up:
+              st.error(f"خطأ أثناء التحديث: {err_up}")
+
+          if submit_delete:
+            try:
+              conn = get_db_connection()
+              cursor = conn.cursor()
+              cursor.execute("DELETE FROM buildings WHERE id=?", (eb_id,))
+              conn.commit()
+              conn.close()
+              add_log("ADMIN", f"تم حذف البناية ID: {eb_id}")
+              st.success("🗑️ تم حذف البناية بنجاح من النظام!")
+              st.rerun()
+            except Exception as err_del:
+              st.error(f"خطأ أثناء الحذف: {err_del}")
+    else:
+      st.info("لا توجد بنايات مسجلة للتعديل أو الحذف.")
+
+  # --- تبويب 3: إدارة وحذف المستثمرين ---
   with tab3:
-    st.subheader("👥 قاعدة بيانات المستثمرين والمهتمين بالبنايات والصفقات")
+    st.subheader(
+        "👥 إدارة وعرض وحذف قاعدة بيانات المستثمرين والمهتمين بالصفقات"
+    )
     try:
       conn = get_db_connection()
       cursor = conn.cursor()
       cursor.execute(
-          "SELECT name, phone, email, country, preferred_location, max_budget,"
-          " deal_status FROM buyers"
+          "SELECT id, name, phone, country, preferred_location, max_budget,"
+          " deal_status FROM buyers ORDER BY id DESC"
       )
-      all_b = cursor.fetchall()
+      all_buyers = cursor.fetchall()
       conn.close()
     except:
-      all_b = []
+      all_buyers = []
 
-    if all_b:
-      for ab in all_b:
-        st.markdown(
-            f"- 👤 **{ab[0]}** ({ab[3]}) | هاتف: `{ab[1]}` | إيميل: `{ab[2]}` |"
-            f" المنطقة: `{ab[4]}` | الميزانية: `{ab[5]:,.2f} ر.ع` | الحالة:"
-            f" `{ab[6]}`"
-        )
+    if all_buyers:
+      for ab in all_buyers:
+        ab_id, ab_name, ab_phone, ab_country, ab_loc, ab_budget, ab_status = ab
+        with st.expander(
+            f"👤 المستثمر: {ab_name} | الدولة: {ab_country} | الحالة: [{ab_status}]"
+        ):
+          st.markdown(
+              f"📞 **الهاتف:** `{ab_phone}` | 📍 **المنطقة:** {ab_loc} |"
+              f" **الميزانية:** `{ab_budget:,.2f} ر.ع`"
+          )
+          if st.button(
+              f"🗑️️ حذف السجل رقم ({ab_id}) للمستثمر {ab_name}",
+              key=f"del_buyer_{ab_id}",
+          ):
+            try:
+              conn = get_db_connection()
+              cursor = conn.cursor()
+              cursor.execute("DELETE FROM buyers WHERE id=?", (ab_id,))
+              conn.commit()
+              conn.close()
+              add_log("ADMIN", f"تم حذف المستثمر ID: {ab_id} ({ab_name})")
+              st.success("🗑️ تم حذف بيانات المستثمر بنجاح!")
+              st.rerun()
+            except Exception as e_b:
+              st.error(f"خطأ أثناء الحذف: {e_b}")
     else:
       st.info("لا يوجد مستثمرون مسجلون حالياً.")
 
   # --- تبويب 4: تصدير التقارير ---
   with tab4:
-    st.subheader(
-        "📥 نظام تصدير بيانات البنايات والعملاء (Export Reports to CSV)"
-    )
+    st.subheader("📥 نظام تصدير بيانات البنايات والعملاء (Export Reports)")
     exp_choice = st.radio(
         "اختر الملف المطلوب تصديره:",
         ["قائمة البنايات الاستثمارية", "قاعدة بيانات المستثمرين"],
