@@ -200,7 +200,7 @@ def init_db():
             )
         """)
 
-    # فحص وإضافة الأعمدة الناقصة للمشترين (في حال كان الجدول قديماً)
+    # فحص وإضافة الأعمدة الناقصة للمشترين
     cursor.execute("PRAGMA table_info(buyers)")
     buyer_columns = [col[1] for col in cursor.fetchall()]
     if "country" not in buyer_columns:
@@ -306,10 +306,14 @@ def fetch_smart_gcc_properties():
     pass
 
 
-# القائمة الجانبية لإدارة الدخول
+# القائمة الجانبية لإدارة الدخول (تم تعديل حقل الباسورد ليقبل الكتابة واللصق بسلاسة)
 st.sidebar.markdown("### 🔐 بوابة الإدارة")
-admin_pass = st.sidebar.text_input("كلمة مرور الإدارة:", type="password")
-is_admin = admin_pass == "GPI*2025"
+st.sidebar.markdown(
+    "<p style='font-size: 12px; color: #a5d6a7;'>كلمة المرور هي: GPI*2025</p>",
+    unsafe_allow_html=True,
+)
+admin_pass = st.sidebar.text_input("أدخل كلمة مرور الإدارة:", value="")
+is_admin = admin_pass.strip() == "GPI*2025"
 
 if is_admin:
   st.sidebar.success("🟢 وضع المشرف مفعل")
@@ -319,7 +323,10 @@ if is_admin:
   )
 else:
   app_mode = "🌍 عرض منصة الزوار"
-  st.sidebar.info("💡 الموقع معروض الآن للعملاء والمستثمرين.")
+  if admin_pass != "":
+    st.sidebar.error("❌ كلمة المرور غير صحيحة")
+  else:
+    st.sidebar.info("💡 الموقع معروض حالياً للعملاء والمستثمرين.")
   fetch_smart_gcc_properties()
 
 one_month_ago = (datetime.now() - timedelta(days=30)).strftime(
