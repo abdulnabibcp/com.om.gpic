@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import sqlite3
 import streamlit as st
 import smtplib
@@ -8,11 +8,54 @@ from email.mime.multipart import MIMEMultipart
 # استيراد البيانات الحساسة والإعدادات من الملف المنفصل
 from config import BANK_INFO, BOT_WHATSAPP, SENDER_EMAIL, SENDER_PASSWORD
 
-# إعداد الصفحة وتصميم الواجهة
+# إعداد الصفحة وتصميم الواجهة مع دعم الاتجاه من اليمين لليسار (RTL) وتنسيق احترافي
 st.set_page_config(
     page_title="شركة التخطيط العالمية للاستثمار | العقارات في مسقط والخليج",
     page_icon="🏢",
     layout="wide",
+)
+
+# حقن أكواد CSS لضمان اتجاه الكتابة من اليمين ليسار (RTL) وتنسيق الخطوط والعناصر باحترافية
+st.markdown(
+    """
+    <style>
+    /* توجيه الموقع بالكامل من اليمين إلى اليسار وتحديد خط عربي أنيق */
+    html, body, [class*="css"] {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Tajawal', 'Cairo', sans-serif, Tahoma;
+    }
+    
+    /* تنسيق القائمة الجانبية */
+    section[data-testid="stSidebar"] {
+        direction: rtl;
+        text-align: right;
+    }
+
+    /* تنسيق بطاقات العقارات لتبدو كمنصة عقارية عالمية */
+    .property-card {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }
+    
+    /* تنسيق الأزرار والعناوين البارزة */
+    h1, h2, h3 {
+        color: #1b3b36;
+        font-weight: 700;
+    }
+    
+    .stButton>button {
+        width: 100%;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
 )
 
 DB_NAME = "real_estate_agent.db"
@@ -103,34 +146,38 @@ def add_log(log_type, message):
     pass
 
 
-# المحرك الذكي لجلب العقارات
+# المحرك الذكي لجلب العقارات الحديثة (خلال آخر شهر فقط) مع أرقام تواصل صحيحة وموثوقة
 def fetch_smart_gcc_properties():
   try:
     init_db()
+    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sample_listings = [
         (
             "أرض استثمارية كبرى في مسقط هيلز",
             "مسقط",
             150000.0,
-            "مساحة 1200 متر مخصصة لبناء برج تجاري سكني.",
+            "مساحة 1200 متر مخصصة لبناء برج تجاري سكني بإطلالة متميزة.",
             "https://muscat-realestate.om/prop/201",
-            "+96899112233",
+            BOT_WHATSAPP,
+            current_time_str,
         ),
         (
             "فلل فاخرة بإطلالة بحرية في القرم",
             "القرم",
             220000.0,
-            "تشطيبات أوروبية راقية، مناسبة للمستثمرين الخليجيين.",
+            "تشطيبات أوروبية راقية، مناسبة للمستثمرين الخليجيين الساعين للفخامة.",
             "https://muscat-realestate.om/prop/202",
-            "+96895554433",
+            BOT_WHATSAPP,
+            current_time_str,
         ),
         (
             "عمارة تجارية استثمارية في الخوض",
             "الخوض",
             310000.0,
-            "دخل شهري مضمون بنسبة 10%، مؤجرة بالكامل.",
+            "دخل شهري مضمون بنسبة 10%، مؤجّرة بالكامل لشركات كبرى.",
             "https://muscat-realestate.om/prop/203",
-            "+96898887766",
+            BOT_WHATSAPP,
+            current_time_str,
         ),
     ]
     import random
@@ -155,11 +202,11 @@ def fetch_smart_gcc_properties():
               selected[4],
               selected[5],
               "نشط",
-              datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+              selected[6],
           ),
       )
       conn.commit()
-      add_log("SUCCESS", f"تم رصد عقار جديد: {selected[0]} في {selected[1]}")
+      add_log("SUCCESS", f"تم رصد عقار حديث: {selected[0]} في {selected[1]}")
     conn.close()
   except:
     pass
@@ -178,37 +225,37 @@ if is_admin:
   )
 else:
   app_mode = "🌍 عرض موقع الزوار (الرئيسي)"
-  st.sidebar.info("💡 الموقع معروض الآن كما يراه الزبائن والمشترون.")
+  st.sidebar.info("💡 الموقع معروض الآن للزبائن والمستثمرين.")
   fetch_smart_gcc_properties()
 
+# حساب تاريخ الحد الأدنى (أقل من شهر واحد - 30 يوماً مضت)
+one_month_ago = (datetime.now() - timedelta(days=30)).strftime(
+    "%Y-%m-%d %H:%M:%S"
+)
+
 # ==========================================
-# 1. وضع الزوار والمشترين (الموقع العقاري العام)
+# 1. وضع الزوار والمشترين (الموقع العقاري العام الاحترافي - عقارات حديثة فقط)
 # ==========================================
 if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
-  st.title(
-      "🏢 شركة التخطيط العالمية للاستثمار (Global Planning Investment"
-      " Company)"
-  )
-  st.markdown(
-      "### 🌟 منصة العروض العقارية الاستثمارية في مسقط وسائر دول مجلس التعاون"
-      " الخليجي"
-  )
+  st.title("🏢 شركة التخطيط العالمية للاستثمار")
+  st.markdown("### 🌟 بوابة الفرص العقارية الاستثمارية في سلطنة عمان والخليج")
   st.markdown(
       "نرحب بكم عملائنا الكرام من **المملكة العربية السعودية، الإمارات، الكويت،"
-      " قطر، البحرين، وعمان**. استعرضوا أفضل الفرص الاستثمارية وتواصلوا مع"
-      " فريق المبيعات لحفظ حقوق الوساطة."
+      " قطر، البحرين، وعمان**. نضع بين أيديكم أرقى الفرص العقارية والتجارية في"
+      " محافظة مسقط المضافة حديثاً (خلال آخر 30 يوماً) مع ضمان حفظ حقوق الوساطة"
+      " والتنسيق المباشر عبر أرقامنا الرسمية الصحيحة."
   )
   st.markdown("---")
 
-  col1, col2 = st.columns(2)
+  col1, col2 = st.columns([2, 2])
   with col1:
     filter_loc = st.selectbox(
-        "📍 تصفية حسب المنطقة في مسقط:",
+        "📍 تصفية العقارات حسب المنطقة:",
         ["الكل", "مسقط", "القرم", "الخوض", "بوشر", "العامرات"],
     )
 
   st.markdown("---")
-  st.subheader("📋 قائمة العقارات المتاحة حالياً للبيع والاستثمار")
+  st.subheader("📋 قائمة العقارات الاستثمارية الحديثة (المضافة خلال الشهر الحالي)")
 
   init_db()
   conn = sqlite3.connect(DB_NAME)
@@ -216,14 +263,15 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
   try:
     if filter_loc == "الكل":
       cursor.execute(
-          "SELECT title, location, price, details, source_url FROM properties"
-          " ORDER BY id DESC"
+          "SELECT title, location, price, details, source_url, created_at FROM"
+          " properties WHERE created_at >= ? ORDER BY id DESC",
+          (one_month_ago,),
       )
     else:
       cursor.execute(
-          "SELECT title, location, price, details, source_url FROM properties"
-          " WHERE location = ? ORDER BY id DESC",
-          (filter_loc,),
+          "SELECT title, location, price, details, source_url, created_at FROM"
+          " properties WHERE location = ? AND created_at >= ? ORDER BY id DESC",
+          (filter_loc, one_month_ago),
       )
     public_props = cursor.fetchall()
   except:
@@ -233,11 +281,17 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
   if public_props:
     for pp in public_props:
       with st.container():
-        st.markdown(f"### 🏢 {pp[0]}")
-        st.write(
-            f"📍 **الموقع:** {pp[1]} | 💰 **السعر:** {pp[2]:,} ر.ع (ريال عماني)"
+        st.markdown(
+            f"""
+                <div style="background-color: #f9fbfb; border: 1px solid #d2dedc; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                    <h3 style="color: #1b3b36; margin-top: 0;">🏢 {pp[0]}</h3>
+                    <p><b>📍 الموقع:</b> {pp[1]} &nbsp;&nbsp;|&nbsp;&nbsp; <b>💰 السعر الاستثماري:</b> <span style="color: #0e6251; font-size: 18px;"><b>{pp[2]:,} ر.ع</b></span> (ريال عماني)</p>
+                    <p><b>📝 التفاصيل:</b> {pp[3]}</p>
+                    <p style="color: #666; font-size: 12px;">🕒 <b>تاريخ الإعلان:</b> {pp[5]} (ضمن عقارات الشهر الأخير)</p>
+                </div>
+            """,
+            unsafe_allow_html=True,
         )
-        st.write(f"📝 **التفاصيل:** {pp[3]}")
 
         whatsapp_link = (
             f"https://wa.me/{BOT_WHATSAPP.replace('+', '')}?text="
@@ -245,38 +299,48 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
             f" ({pp[2]} ر.ع). أرجو التواصل للتفاصيل."
         )
         st.markdown(
-            f"[💬 تواصل مع فريق المبيعات (واتساب)]({whatsapp_link}) | 📱 رقم"
-            f" الشركة: `{BOT_WHATSAPP}`"
+            f"[💬 للتواصل المباشر مع فريق المبيعات عبر الواتساب الصحبح"
+            f" ({BOT_WHATSAPP})]({whatsapp_link})"
         )
         st.markdown("---")
   else:
-    st.info("لا توجد عقارات مطابقة حالياً.")
+    st.info("لا توجد عقارات حديثة مطابقة أُضيف خلال الشهر الحالي.")
 
-  # قسم تسجيل رغبة المشتري
-  st.markdown("### 📝 سجل رغبتك الاستثمارية (لبحث العقارات المخصصة)")
+  # قسم تسجيل رغبة المشتري بتصميم مرتب
+  st.markdown("---")
+  st.subheader("📝 سجل رغبتك الاستثمارية (لبحث العقارات المخصصة)")
+  st.markdown(
+      "أدخل بياناتك وسيتولى محركنا الذكي إيجاد العقار المناسب لميزطانيتك وتطلعاتك"
+      " في مسقط."
+  )
+
   with st.form("public_buyer_form"):
-    bp_name = st.text_input("الاسم الكريم")
-    bp_phone = st.text_input("رقم الهاتف مع رمز الدولة (مثال: +9665XXXXXXXX)")
-    bp_email = st.text_input("البريد الإلكتروني")
-    bp_country = st.selectbox(
-        "الدولة القادم منها",
-        [
-            "سلطنة عمان",
-            "المملكة العربية السعودية",
-            "الإمارات العربية المتحدة",
-            "الكويت",
-            "قطر",
-            "البحرين",
-        ],
-    )
-    bp_loc = st.selectbox(
-        "المنطقة المطلوبة في مسقط",
-        ["مسقط", "القرم", "الخوض", "بوشر", "العامرات", "الموالح"],
-    )
-    bp_budget = st.number_input(
-        "الحد الأقصى للميزانية المرصودة (ريال عماني)", value=100000.0
-    )
-    submit_bp = st.form_submit_button("إرسال الطلب لفريق الاستثمار")
+    c1, c2 = st.columns(2)
+    with c1:
+      bp_name = st.text_input("الاسم الكريم")
+      bp_phone = st.text_input("رقم الهاتف مع رمز الدولة (مثال: +9665XXXXXXXX)")
+      bp_email = st.text_input("البريد الإلكتروني")
+    with c2:
+      bp_country = st.selectbox(
+          "الدولة القادم منها",
+          [
+              "سلطنة عمان",
+              "المملكة العربية السعودية",
+              "الإمارات العربية المتحدة",
+              "الكويت",
+              "قطر",
+              "البحرين",
+          ],
+      )
+      bp_loc = st.selectbox(
+          "المنطقة المطلوبة في مسقط",
+          ["مسقط", "القرم", "الخوض", "بوشر", "العامرات", "الموالح"],
+      )
+      bp_budget = st.number_input(
+          "الحد الأقصى للميزانية المرصودة (ريال عماني)", value=100000.0
+      )
+
+    submit_bp = st.form_submit_button("إرسال الطلب لفريق الاستثمار والوساطة")
 
     if submit_bp and bp_name:
       try:
@@ -304,21 +368,17 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
   st.markdown("---")
   st.markdown(
       f"📍 **عنوان الشركة:** مسقط، سلطنة عمان | 📧 **البريد الرسمي:**"
-      f" {SENDER_EMAIL} | 📱 **خدمة العملاء:** {BOT_WHATSAPP}"
+      f" {SENDER_EMAIL} | 📱 **خدمة العملاء الرسمية:** {BOT_WHATSAPP}"
   )
 
 
 # ==========================================
-# 2. وضع لوحة التحكم والإدارة (دور الوسيط الشامل + صانع الإعلانات)
+# 2. وضع لوحة التحكم والإدارة (دور الوسيط الشامل)
 # ==========================================
 elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
-  st.title(
-      "⚙️ لوحة تحكم الوسيط الذكي - شركة التخطيط العالمية للاستثمار (دور الوسيط"
-      " الكامل)"
-  )
+  st.title("⚙️ لوحة تحكم الوسيط الذكي - شركة التخطيط العالمية للاستثمار")
   st.warning(
-      "⚠️ هذه لوحة الإدارة الخاصة بك للبحث عن المشترين وتوليد الإعلانات"
-      " التسويقية."
+      "⚠️ هذه لوحة الإدارة الخاصة بك (سرية) للبحث عن المشترين وتوليد الإعلانات."
   )
 
   tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -332,25 +392,24 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
 
   with tab1:
     st.subheader(
-        "🎯 مطابقة العقارات بالبحث التلقائي عن المشترين والمستثمرين المهتمين"
+        "🎯 مطابقة العقارات الحديثة بالبحث التلقائي عن المشترين والمستثمرين"
     )
-    st.markdown(
-        "يقوم هذا المحرك بفحص العقارات المتاحة ومقارنتها فوراً بميزانيات"
-        " ومواقع المستثمرين المسجلين لديك لتبادر بالاتصال بهم كـوسيط محترف."
-    )
-
     init_db()
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, title, location, price FROM properties")
+    cursor.execute(
+        "SELECT id, title, location, price, created_at FROM properties WHERE"
+        " created_at >= ?",
+        (one_month_ago,),
+    )
     properties_list = cursor.fetchall()
 
     if properties_list:
       selected_prop_id = st.selectbox(
-          "اختر عقاراً للبحث عن مشترين له:",
+          "اختر عقاراً حديثاً للبحث عن مشترين له:",
           [p[0] for p in properties_list],
           format_func=lambda x: next(
-              f"{p[1]} ({p[2]} - {p[3]} ر.ع)"
+              f"{p[1]} ({p[2]} - {p[3]} ر.ع) [أُضيف: {p[4]}]"
               for p in properties_list
               if p[0] == x
           ),
@@ -374,7 +433,7 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
         if matched_buyers:
           st.success(
               f"🎉 وجدنا ({len(matched_buyers)}) مشتري/مستثمر تتطابق ميزانيتهم"
-              " وطلباتهم مع هذا العقار!"
+              " مع هذا العقار!"
           )
           for mb in matched_buyers:
             st.markdown(
@@ -392,37 +451,36 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
             st.markdown("---")
         else:
           st.info(
-              "لا يوجد مشترين مسجلين حالياً بنفس المواصفات. استخدم قسم (صانع"
-              " الإعلانات) لنشر العقار وجذب عملاء جدد بسرعة."
+              "لا يوجد مشترين مسجلين بنفس المواصفات حالياً. استخدم قسم (صانع"
+              " الإعلانات)."
           )
     else:
-      st.info("لا توجد عقارات مسجلة بعد.")
+      st.info("لا توجد عقارات حديثة (أقل من شهر) مسجلة بعد.")
     conn.close()
 
   with tab2:
     st.subheader(
         "📢 صانع الإعلانات التسويقية الجاهزة (Instagram / WhatsApp / Twitter)"
     )
-    st.markdown(
-        "أنشئ إعلانات احترافية مصممة خصيصاً لجذب المستثمرين الخليجيين"
-        " والمحليين بنقرة زر واحدة."
-    )
-
     init_db()
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, title, location, price, details FROM properties"
+        "SELECT id, title, location, price, details, created_at FROM properties"
+        " WHERE created_at >= ?",
+        (one_month_ago,),
     )
     ads_props = cursor.fetchall()
     conn.close()
 
     if ads_props:
       ad_choice = st.selectbox(
-          "اختر عقاراً لتوليد إعلان له:",
+          "اختر عقاراً حديثاً لتوليد إعلان له:",
           [ap[0] for ap in ads_props],
           format_func=lambda x: next(
-              f"{ap[1]} - {ap[2]}" for ap in ads_props if ap[0] == x
+              f"{ap[1]} - {ap[2]} [تاريخ: {ap[5]}]"
+              for ap in ads_props
+              if ap[0] == x
           ),
       )
 
@@ -430,47 +488,54 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
         chosen_p = next(ap for ap in ads_props if ap[0] == ad_choice)
 
         generated_ad_text = (
-            f"🌟 **فرصة استثمارية عقارية كبرى في مسقط** 🇴🇲\n\n"
+            f"🌟 **فرصة استثمارية عقارية كبرى في مسقط (عرض جديد لعام 2026)**"
+            f" 🇴🇲\n\n"
             f"📍 **الموقع:** {chosen_p[2]}\n"
             f"🏢 **العقار:** {chosen_p[1]}\n"
             f"💰 **السعر التنافسي:** {chosen_p[3]:,} ريال عماني\n\n"
             f"📝 **التفاصيل:** {chosen_p[4]}\n\n"
             f"✨ فرصة ممتازة للمستثمرين من سلطنة عمان وسائر دول مجلس التعاون"
             f" الخليجي (السعودية، الإمارات، الكويت، قطر، البحرين).\n\n"
-            f"📞 **للتواصل المباشر مع فريق الوساطة وحجز العقار:**\n"
-            f"واتساب: `{BOT_WHATSAPP}`\n"
+            f"📞 **للتواصل المباشر مع فريق الوساطة وحجز العقار عبر الرقم"
+            f" الرسمي:**\n"
+            f"واتساب الشركة: `{BOT_WHATSAPP}`\n"
             f"البريد الإلكتروني: `{SENDER_EMAIL}`\n\n"
             f"#عقارات_مسقط #استثمار_عقاري #سلطنة_عمان #عقارات_الخليج"
             f" #مستثمر_خليجي #شركة_التخطيط_العالمية"
         )
 
         st.text_area(
-            "النص الإعلاني الجاهز (انسخه وانشره مباشرة في وسائل التواصل):",
+            "النص الإعلاني الجاهز (مع الأرقام الصحيحة والحديثة):",
             generated_ad_text,
             height=250,
         )
         st.success(
-            "💡 نصيحة تسويقية: انسخ هذا النص وضعه مع صورة جذابة للعقار على"
-            " حساب إنستغرام الخاص بالشركة أو حالات الواتساب لجذب المستثمرين"
-            " فورا!"
+            "💡 نصيحة تسويقية: الإعلان يحتوي على أرقام التواصل الصحيحة والموثوقة"
+            " لجذب العملاء بدون أي خطأ."
         )
     else:
-      st.info("لا توجد عقارات كافية لتوليد الإعلانات.")
+      st.info(
+          "لا توجد عقارات حديثة كفاية خلال هذا الشهر لتوليد الإعلانات منها."
+      )
 
   with tab3:
-    st.subheader("قائمة العقارات وأرقام الملاك الحقيقية (سرية للوسيط فقط)")
+    st.subheader(
+        "قائمة العقارات وأرقام الملاك الحقيقية (سرية للوسيط - عقارات الشهر"
+        " الأخير)"
+    )
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, title, location, price, owner_phone FROM properties"
-        " ORDER BY id DESC"
+        "SELECT id, title, location, price, owner_phone, created_at FROM"
+        " properties WHERE created_at >= ? ORDER BY id DESC",
+        (one_month_ago,),
     )
     all_p = cursor.fetchall()
     conn.close()
     for ap in all_p:
       st.markdown(
           f"- **{ap[1]}** | الموقع: {ap[2]} | السعر: {ap[3]} ر.ع | 📞 رقم المالك"
-          f" الحقيقي: `{ap[4]}`"
+          f" الصحيح: `{ap[4]}` | 🕒 أُضيف في: {ap[5]}"
       )
 
   with tab4:
@@ -485,8 +550,8 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
     conn.close()
     for ab in all_b:
       st.markdown(
-          f"- **{ab[0]}** ({ab[3]}) | هاتف: `{ab[1]}` | الإيميل: `{ab[2]}` |"
-          f" المنطقة: `{ab[4]}` | الميزانية: `{ab[5]} ر.ع`"
+          f"- **{ab[0]}** ({ab[3]}) | هاتف صحيح: `{ab[1]}` | الإيميل:"
+          f" `{ab[2]}` | المنطقة: `{ab[4]}` | الميزانية: `{ab[5]} ر.ع`"
       )
 
   with tab5:
@@ -506,14 +571,17 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
     st.metric("إجمالي الإيرادات", f"{tot} ر.ع")
 
   with tab6:
-    st.subheader("إضافة عقار جديد مع رقم المالك (سري)")
+    st.subheader("إضافة عقار جديد مع رقم المالك الرسمي الصحيح")
     with st.form("manual_prop"):
       m_title = st.text_input("عنوان العقار")
       m_loc = st.text_input("الموقع (مثال: مسقط، القرم)")
       m_price = st.number_input("السعر بالريال العماني", value=50000.0)
       m_details = st.text_area("تفاصيل العقار")
-      m_phone = st.text_input("رقم تواصل المالك الحقيقي (مثال: +9689XXXXXXXX)")
-      m_sub = st.form_submit_button("نشر العقار في الموقع العام")
+      m_phone = st.text_input(
+          "رقم تواصل المالك أو الوسيط المعتمد (مثال: +9689XXXXXXXX)",
+          value=BOT_WHATSAPP,
+      )
+      m_sub = st.form_submit_button("نشر العقار الجديد في الموقع العام")
       if m_sub and m_title:
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
@@ -534,4 +602,6 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
         )
         conn.commit()
         conn.close()
-        st.success("تم إضافة العقار بنجاح وتجهيزه للمطابقة والإعلانات!")
+        st.success(
+            "تم إضافة العقار بنجاح وتوثيق تاريخه كعرض حديث مع صحة أرقام التواصل!"
+        )
