@@ -1,6 +1,5 @@
 from datetime import datetime
 import sqlite3
-import time
 import streamlit as st
 import smtplib
 from email.mime.text import MIMEText
@@ -104,24 +103,6 @@ def add_log(log_type, message):
     pass
 
 
-def send_email_notification(receiver_email, subject, body):
-  try:
-    msg = MIMEMultipart()
-    msg["From"] = SENDER_EMAIL
-    msg["To"] = receiver_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain", "utf-8"))
-
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    server.starttls()
-    server.login(SENDER_EMAIL, SENDER_PASSWORD)
-    server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
-    server.quit()
-    return True
-  except Exception as e:
-    return False
-
-
 # المحرك الذكي لجلب العقارات
 def fetch_smart_gcc_properties():
   try:
@@ -184,10 +165,10 @@ def fetch_smart_gcc_properties():
     pass
 
 
-# القائمة الجانبية المخصصة لإدارة الدخول (سرية للمالك فقط)
+# القائمة الجانبية لإدارة الدخول
 st.sidebar.header("🔐 بوابة الإدارة والتحكم")
 admin_pass = st.sidebar.text_input("كلمة مرور الإدارة:", type="password")
-is_admin = admin_pass == "GPI*2025"  # كلمة مرور الإدارة الخاصة بك
+is_admin = admin_pass == "GPI*2025"
 
 if is_admin:
   st.sidebar.success("🟢 تم تفعيل وضع المشرف (Admin Mode)")
@@ -198,7 +179,7 @@ if is_admin:
 else:
   app_mode = "🌍 عرض موقع الزوار (الرئيسي)"
   st.sidebar.info("💡 الموقع معروض الآن كما يراه الزبائن والمشترون.")
-  fetch_smart_gcc_properties()  # تشغيل الروبوت في الخلفية للزوار
+  fetch_smart_gcc_properties()
 
 # ==========================================
 # 1. وضع الزوار والمشترين (الموقع العقاري العام)
@@ -207,8 +188,6 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
   st.title(
       "🏢 شركة التخطيط العالمية للاستثمار (Global Planning Investment"
       " Company)"
-  .encode("utf-8")
-  .decode("utf-8")
   )
   st.markdown(
       "### 🌟 منصة العروض العقارية الاستثمارية في مسقط وسائر دول مجلس التعاون"
@@ -216,12 +195,11 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
   )
   st.markdown(
       "نرحب بكم عملائنا الكرام من **المملكة العربية السعودية، الإمارات، الكويت،"
-      " قطر، البحرين، وعمان**. استعرضوا أفضل الفرص الاستثمارية المباشرة مع"
-      " أرقام التواصل الفورية."
+      " قطر، البحرين، وعمان**. استعرضوا أفضل الفرص الاستثمارية وتواصلوا مع"
+      " فريق المبيعات لحفظ حقوق الوساطة."
   )
   st.markdown("---")
 
-  # تصفية العقارات حسب الموقع أو الدولة
   col1, col2 = st.columns(2)
   with col1:
     filter_loc = st.selectbox(
@@ -238,13 +216,13 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
   try:
     if filter_loc == "الكل":
       cursor.execute(
-          "SELECT title, location, price, details, source_url, owner_phone FROM"
-          " properties ORDER BY id DESC"
+          "SELECT title, location, price, details, source_url FROM properties"
+          " ORDER BY id DESC"
       )
     else:
       cursor.execute(
-          "SELECT title, location, price, details, source_url, owner_phone FROM"
-          " properties WHERE location = ? ORDER BY id DESC",
+          "SELECT title, location, price, details, source_url FROM properties"
+          " WHERE location = ? ORDER BY id DESC",
           (filter_loc,),
       )
     public_props = cursor.fetchall()
@@ -261,25 +239,20 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
         )
         st.write(f"📝 **التفاصيل:** {pp[3]}")
 
-        # أزرار التواصل المباشر مع صاحب العقار
-        c_btn1, c_btn2 = st.columns(2)
-        with c_btn1:
-          st.markdown(
-              f"📞 **رقم المالك / المعلن:** `{pp[5]}`"
-          )
-        with c_btn2:
-          st.markdown(
-              f"[💬 تواصل واتساب مباشر مع المالك]"
-              f"(https://wa.me/{pp[5].replace('+', '')})"
-          )
+        whatsapp_link = (
+            f"https://wa.me/{BOT_WHATSAPP.replace('+', '')}?text="
+            f"مرحباً، أهتم بالعقار ({pp[0]}) في موقع ({pp[1]}) بسعر"
+            f" ({pp[2]} ر.ع). أرجو التواصل للتفاصيل."
+        )
+        st.markdown(
+            f"[💬 تواصل مع فريق المبيعات (واتساب)]({whatsapp_link}) | 📱 رقم"
+            f" الشركة: `{BOT_WHATSAPP}`"
+        )
         st.markdown("---")
   else:
-    st.info(
-        "لا توجد عقارات مطابقة حالياً، يرجى العودة لاحقاً أو تسجيل رغبتكم"
-        " الاستثمارية أدناه."
-    )
+    st.info("لا توجد عقارات مطابقة حالياً.")
 
-  # قسم تسجيل رغبة المشتري / المستثمر الخليجي
+  # قسم تسجيل رغبة المشتري
   st.markdown("### 📝 سجل رغبتك الاستثمارية (لبحث العقارات المخصصة)")
   with st.form("public_buyer_form"):
     bp_name = st.text_input("الاسم الكريم")
@@ -336,40 +309,156 @@ if app_mode == "🌍 عرض موقع الزوار (الرئيسي)":
 
 
 # ==========================================
-# 2. وضع لوحة التحكم والإدارة (خاص بك وحدك)
+# 2. وضع لوحة التحكم والإدارة (دور الوسيط الشامل + صانع الإعلانات)
 # ==========================================
 elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
-  st.title("⚙️ لوحة التحكم الإدارية - شركة التخطيط العالمية")
-  st.warning("⚠️ هذه الصفحة خاصة بإدارة الشركة فقط ولا يراها الزبائن.")
+  st.title(
+      "⚙️ لوحة تحكم الوسيط الذكي - شركة التخطيط العالمية للاستثمار (دور الوسيط"
+      " الكامل)"
+  )
+  st.warning(
+      "⚠️ هذه لوحة الإدارة الخاصة بك للبحث عن المشترين وتوليد الإعلانات"
+      " التسويقية."
+  )
 
-  tab1, tab2, tab3, tab4, tab5 = st.tabs([
-      "📊 السجلات الحية",
-      "🏠 إدارة العقارات والملاك",
+  tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+      "🔍 محرك مطابقة المشترين (AI Matchmaker)",
+      "📢 صانع الإعلانات التسويقية (GCC Ads)",
+      "🏠 إدارة العقارات وأرقام الملاك (سرية)",
       "👥 المشترين المسجلين",
       "💰 الإيرادات والاشتراكات",
       "➕ إضافة عقار يدوياً",
   ])
 
   with tab1:
-    st.subheader("متابعة نشاط النظام لحظياً")
-    if st.button("🔄 تحديث السجلات"):
-      st.rerun()
+    st.subheader(
+        "🎯 مطابقة العقارات بالبحث التلقائي عن المشترين والمستثمرين المهتمين"
+    )
+    st.markdown(
+        "يقوم هذا المحرك بفحص العقارات المتاحة ومقارنتها فوراً بميزانيات"
+        " ومواقع المستثمرين المسجلين لديك لتبادر بالاتصال بهم كـوسيط محترف."
+    )
+
+    init_db()
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title, location, price FROM properties")
+    properties_list = cursor.fetchall()
+
+    if properties_list:
+      selected_prop_id = st.selectbox(
+          "اختر عقاراً للبحث عن مشترين له:",
+          [p[0] for p in properties_list],
+          format_func=lambda x: next(
+              f"{p[1]} ({p[2]} - {p[3]} ر.ع)"
+              for p in properties_list
+              if p[0] == x
+          ),
+      )
+
+      if selected_prop_id:
+        cursor.execute(
+            "SELECT title, location, price FROM properties WHERE id = ?",
+            (selected_prop_id,),
+        )
+        p_data = cursor.fetchone()
+
+        cursor.execute(
+            "SELECT name, phone, email, country, max_budget FROM buyers WHERE"
+            " preferred_location = ? AND max_budget >= ?",
+            (p_data[1], p_data[2]),
+        )
+        matched_buyers = cursor.fetchall()
+
+        st.markdown(f"### النتائج للعقار: **{p_data[0]}** في ({p_data[1]})")
+        if matched_buyers:
+          st.success(
+              f"🎉 وجدنا ({len(matched_buyers)}) مشتري/مستثمر تتطابق ميزانيتهم"
+              " وطلباتهم مع هذا العقار!"
+          )
+          for mb in matched_buyers:
+            st.markdown(
+                f"- 👤 **{mb[0]}** (دولة: {mb[3]}) | هاتف: `{mb[1]}` | إيميل:"
+                f" `{mb[2]}` | الميزانية: `{mb[4]} ر.ع`"
+            )
+            w_msg = (
+                f"مرحباً بالمستثمر الكريم {mb[0]}، نوفر لكم فرصة عقارية مميزة"
+                f" مطابقة لطلبكم في {p_data[1]} بسعر {p_data[2]} ر.ع. للتنسيق:"
+                f" {BOT_WHATSAPP}"
+            )
+            st.markdown(
+                f"[💬 إرسال عرض واتساب للمشتري](https://wa.me/{mb[1].replace('+', '')}?text={w_msg})"
+            )
+            st.markdown("---")
+        else:
+          st.info(
+              "لا يوجد مشترين مسجلين حالياً بنفس المواصفات. استخدم قسم (صانع"
+              " الإعلانات) لنشر العقار وجذب عملاء جدد بسرعة."
+          )
+    else:
+      st.info("لا توجد عقارات مسجلة بعد.")
+    conn.close()
+
+  with tab2:
+    st.subheader(
+        "📢 صانع الإعلانات التسويقية الجاهزة (Instagram / WhatsApp / Twitter)"
+    )
+    st.markdown(
+        "أنشئ إعلانات احترافية مصممة خصيصاً لجذب المستثمرين الخليجيين"
+        " والمحليين بنقرة زر واحدة."
+    )
+
+    init_db()
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT timestamp, log_type, message FROM activity_logs ORDER BY id DESC"
-        " LIMIT 50"
+        "SELECT id, title, location, price, details FROM properties"
     )
-    logs = cursor.fetchall()
+    ads_props = cursor.fetchall()
     conn.close()
-    for ts, ltype, msg in logs:
-      if ltype == "SUCCESS":
-        st.success(f"[{ts}] {msg}")
-      else:
-        st.info(f"[{ts}] {msg}")
 
-  with tab2:
-    st.subheader("قائمة العقارات وأرقام الملاك")
+    if ads_props:
+      ad_choice = st.selectbox(
+          "اختر عقاراً لتوليد إعلان له:",
+          [ap[0] for ap in ads_props],
+          format_func=lambda x: next(
+              f"{ap[1]} - {ap[2]}" for ap in ads_props if ap[0] == x
+          ),
+      )
+
+      if ad_choice:
+        chosen_p = next(ap for ap in ads_props if ap[0] == ad_choice)
+
+        generated_ad_text = (
+            f"🌟 **فرصة استثمارية عقارية كبرى في مسقط** 🇴🇲\n\n"
+            f"📍 **الموقع:** {chosen_p[2]}\n"
+            f"🏢 **العقار:** {chosen_p[1]}\n"
+            f"💰 **السعر التنافسي:** {chosen_p[3]:,} ريال عماني\n\n"
+            f"📝 **التفاصيل:** {chosen_p[4]}\n\n"
+            f"✨ فرصة ممتازة للمستثمرين من سلطنة عمان وسائر دول مجلس التعاون"
+            f" الخليجي (السعودية، الإمارات، الكويت، قطر، البحرين).\n\n"
+            f"📞 **للتواصل المباشر مع فريق الوساطة وحجز العقار:**\n"
+            f"واتساب: `{BOT_WHATSAPP}`\n"
+            f"البريد الإلكتروني: `{SENDER_EMAIL}`\n\n"
+            f"#عقارات_مسقط #استثمار_عقاري #سلطنة_عمان #عقارات_الخليج"
+            f" #مستثمر_خليجي #شركة_التخطيط_العالمية"
+        )
+
+        st.text_area(
+            "النص الإعلاني الجاهز (انسخه وانشره مباشرة في وسائل التواصل):",
+            generated_ad_text,
+            height=250,
+        )
+        st.success(
+            "💡 نصيحة تسويقية: انسخ هذا النص وضعه مع صورة جذابة للعقار على"
+            " حساب إنستغرام الخاص بالشركة أو حالات الواتساب لجذب المستثمرين"
+            " فورا!"
+        )
+    else:
+      st.info("لا توجد عقارات كافية لتوليد الإعلانات.")
+
+  with tab3:
+    st.subheader("قائمة العقارات وأرقام الملاك الحقيقية (سرية للوسيط فقط)")
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
@@ -379,12 +468,12 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
     all_p = cursor.fetchall()
     conn.close()
     for ap in all_p:
-      st.write(
-          f"ID: {ap[0]} | **{ap[1]}** | الموقع: {ap[2]} | السعر: {ap[3]} ر.ع |"
-          f" المالك: `{ap[4]}`"
+      st.markdown(
+          f"- **{ap[1]}** | الموقع: {ap[2]} | السعر: {ap[3]} ر.ع | 📞 رقم المالك"
+          f" الحقيقي: `{ap[4]}`"
       )
 
-  with tab3:
+  with tab4:
     st.subheader("قاعدة بيانات المستثمرين المشترين")
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -400,7 +489,7 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
           f" المنطقة: `{ab[4]}` | الميزانية: `{ab[5]} ر.ع`"
       )
 
-  with tab4:
+  with tab5:
     st.subheader("إيرادات المكاتب والخدمات (بنك مسقط)")
     st.markdown(
         f"**البنك:** {BANK_INFO['bank_name']} | **الآيبان:**"
@@ -416,16 +505,14 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
     conn.close()
     st.metric("إجمالي الإيرادات", f"{tot} ر.ع")
 
-  with tab5:
-    st.subheader("إضافة عقار جديد مع رقم المالك")
+  with tab6:
+    st.subheader("إضافة عقار جديد مع رقم المالك (سري)")
     with st.form("manual_prop"):
       m_title = st.text_input("عنوان العقار")
       m_loc = st.text_input("الموقع (مثال: مسقط، القرم)")
       m_price = st.number_input("السعر بالريال العماني", value=50000.0)
       m_details = st.text_area("تفاصيل العقار")
-      m_phone = st.text_input(
-          "رقم تواصل المالك مباشر (مثال: +9689XXXXXXXX)"
-      )
+      m_phone = st.text_input("رقم تواصل المالك الحقيقي (مثال: +9689XXXXXXXX)")
       m_sub = st.form_submit_button("نشر العقار في الموقع العام")
       if m_sub and m_title:
         conn = sqlite3.connect(DB_NAME)
@@ -447,4 +534,4 @@ elif app_mode == "⚙️ لوحة التحكم والإدارة الذكية":
         )
         conn.commit()
         conn.close()
-        st.success("تم نشر العقار في الموقع العام للزبائن بنجاح!")
+        st.success("تم إضافة العقار بنجاح وتجهيزه للمطابقة والإعلانات!")
