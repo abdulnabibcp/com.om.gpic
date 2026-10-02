@@ -9,6 +9,9 @@ from config import BANK_INFO, BOT_WHATSAPP, SENDER_EMAIL, SENDER_PASSWORD
 TURSO_DATABASE_URL = "ضع_رابط_Turso_هنا"  # ضع رابط الـ URL الخاص بك هنا
 TURSO_AUTH_TOKEN = "ضع_رمز_التحقق_Token_هنا"  # ضع الـ Token الخاص بك هنا
 
+# كلمة المرور السرية الخاصة بلوحة تحكم المشرف (يمكنك تغييرها هنا)
+ADMIN_PASSWORD = "123"  # ضع كلمة المرور التي تريدها هنا
+
 # إعداد الصفحة وتصميم الواجهة الفاخرة
 st.set_page_config(
     page_title=(
@@ -210,21 +213,27 @@ def add_log(log_type, message):
     pass
 
 
-# القائمة الجانبية لإدارة الدخول (بزر تبديل آمن)
-st.sidebar.markdown("### 🔐 بوابة الإدارة")
-is_admin = st.sidebar.toggle("تفعيل وضع المشرف (لوحة التحكم)", value=False)
+# ==========================================
+# القائمة الجانبية ونظام تسجيل الدخول بكلمة المرور
+# ==========================================
+st.sidebar.markdown("### 🔐 بوابة الإدارة الآمنة")
+password_input = st.sidebar.text_input(
+    "أدخل كلمة مرور المشرف:", type="password"
+)
 
-if is_admin:
-  st.sidebar.success("🟢 وضع المشرف مفعل")
+if password_input == ADMIN_PASSWORD:
+  st.sidebar.success("🟢 تم تسجيل الدخول بنجاح")
   app_mode = st.sidebar.radio(
       "اختر وضع العرض:",
       ["🌍 عرض منصة الزوار", "⚙️ لوحة تحكم الوسيط الذكي"],
   )
 else:
+  if password_input:
+    st.sidebar.error("❌ كلمة المرور غير صحيحة")
   app_mode = "🌍 عرض منصة الزوار"
   st.sidebar.info(
-      "💡 الموقع معروض حالياً للعملاء والمستثمرين. قم بتفعيل الزر أعلاه للوصول"
-      " للوحة التحكم."
+      "💡 الموقع معروض حصرياً للعملاء. لوحة التحكم مخفية وتحتاج لكلمة مرور"
+      " للإدارة."
   )
 
 one_month_ago = (datetime.now() - timedelta(days=30)).strftime(
