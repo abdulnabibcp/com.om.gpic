@@ -141,6 +141,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # إنشاء الجدول الأساسي إن لم يكن موجوداً
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS buildings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,6 +158,15 @@ def init_db():
                 created_at TEXT
             )
         """)
+
+    # التحقق من وجود الأعمدة الجديدة وإضافتها آلياً إن لم تكن موجودة لتجنب أي أخطاء
+    cursor.execute("PRAGMA table_info(buildings)")
+    existing_columns = [col[1] for col in cursor.fetchall()]
+
+    if "monthly_income" not in existing_columns:
+      cursor.execute("ALTER TABLE buildings ADD COLUMN monthly_income REAL")
+    if "owner_phone" not in existing_columns:
+      cursor.execute("ALTER TABLE buildings ADD COLUMN owner_phone TEXT")
 
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS buyers (
@@ -354,14 +364,14 @@ if app_mode == "🌍 عرض منصة الزوار":
                         </div>
                         <div class="card-details">
                             🚪 عدد الوحدات: <b>{b_units}</b><br>
-                            💵 الدخل الشهري: <b>{b_mincome:,.2f} ر.ع</b> | السنوي: <b>{b_aincome:,.2f} ر.ع</b><br>
-                            📈 العائد السنوي (ROI): <b>~{b_roi}%</b>
+                            💵 الدخل الشهري: <b>{b_mincome if b_mincome else 0:,.2f} ر.ع</b> | السنوي: <b>{b_aincome if b_aincome else 0:,.2f} ر.ع</b><br>
+                            📈 العائد السنوي (ROI): <b>~{b_roi if b_roi else 0}%</b>
                         </div>
                         <div style="margin-bottom: 14px;">
                             <a href="{b_maps}" target="_blank" style="color: #0e6251; font-weight: bold; text-decoration: underline;">📍 رابط موقع البناية على الخريطة</a>
                         </div>
                         <div class="card-footer">
-                            <span class="card-date">🕒 أُضيف في: {b_date.split(' ')[0]}</span>
+                            <span class="card-date">🕒 أُضيف في: {b_date.split(' ')[0] if b_date else ''}</span>
                             <a href="{wa_link}" target="_blank" class="whatsapp-btn">💬 تواصل واتساب الصفقة</a>
                         </div>
                     </div>
@@ -581,9 +591,10 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             f"📍 الموقع: {bloc}\n"
             f"🏷 القطاع: {bty}\n"
             f"🚪 عدد الوحدات: {buni} وحدة\n"
-            f"💵 الدخل الشهري: {bminc:,.2f} ر.ع (السنوي: {bainc:,.2f} ر.ع)\n"
-            f"💵 السعر المطلوب: {bpr:,.2f} ر.ع\n"
-            f"📈 العائد السنوي (ROI): ~{broi}%\n\n"
+            f"💵 الدخل الشهري: {bminc if bminc else 0:,.2f} ر.ع (السنوي:"
+            f" {bainc if bainc else 0:,.2f} ر.ع)\n"
+            f"💵 السعر المطلوب: {bpr if bpr else 0:,.2f} ر.ع\n"
+            f"📈 العائد السنوي (ROI): ~{broi if broi else 0}%\n\n"
             f"📍 *رابط الموقع على الخريطة مباشرة:*\n"
             f"{bmap}\n\n"
             f"📞 *للتواصل وحجز الصفقة مع مسؤول البناية مباشرة:*\n"
@@ -662,7 +673,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             )
             new_loc = st.text_input("الموقع:", value=eb_loc)
             new_units = st.number_input(
-                "عدد الوحدات:", value=int(eb_units), step=1
+                "عدد الوحدات:", value=int(eb_units) if eb_units else 1, step=1
             )
             new_ophone = st.text_input(
                 "رقم تواصل المالك:",
@@ -670,12 +681,18 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             )
           with col_e2:
             new_mincome = st.number_input(
-                "الدخل الشهري (ر.ع):", value=float(eb_mincome), step=50.0
+                "الدخل الشهري (ر.ع):",
+                value=float(eb_mincome) if eb_mincome else 0.0,
+                step=50.0,
             )
             new_price = st.number_input(
-                "السعر المطلوب (ر.ع):", value=float(eb_price), step=10000.0
+                "السعر المطلوب (ر.ع):",
+                value=float(eb_price) if eb_price else 0.0,
+                step=10000.0,
             )
-            new_maps = st.text_input("رابط الخريطة:", value=eb_maps)
+            new_maps = st.text_input(
+                "رابط الخريطة:", value=eb_maps if eb_maps else ""
+            )
 
           col_btn1, col_btn2 = st.columns(2)
           with col_btn1:
@@ -846,7 +863,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
         )
         st.success("الملف جاهز للتحميل بنجاح!")
       except Exception as ex_c:
-        st.error(f"خطأ في التصدير: {ex_c}")
+        st.error(f"خطأ أثناء التصدير: {ex_c}")
 
   # --- تبويب 5: الإيرادات والعمولات ---
   with tab5:
