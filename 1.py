@@ -1,9 +1,13 @@
 from datetime import datetime, timedelta
-import sqlite3
+import libsql_client
 import streamlit as st
 
 # استيراد البيانات الحساسة والإعدادات من الملف المنفصل
 from config import BANK_INFO, BOT_WHATSAPP, SENDER_EMAIL, SENDER_PASSWORD
+
+# بيانات الاتصال بقاعدة بيانات Turso السحابية
+TURSO_DATABASE_URL = "ضع_رابط_Turso_هنا"  # ضع رابط الـ URL الخاص بك هنا
+TURSO_AUTH_TOKEN = "ضع_رمز_التحقق_Token_هنا"  # ضع الـ Token الخاص بك هنا
 
 # إعداد الصفحة وتصميم الواجهة الفاخرة
 st.set_page_config(
@@ -14,19 +18,16 @@ st.set_page_config(
     layout="wide",
 )
 
-# حقن أكواد CSS لتصميم بطاقات تتحدث عن نفسها (عصرية، نظيفة، وجذابة جداً)
+# حقن أكواد CSS لتصميم البطاقات العصرية
 st.markdown(
     """
     <style>
-    /* توجيه الموقع بالكامل من اليمين إلى اليسار وتحديد خط أنيق */
     html, body, [class*="css"] {
         direction: rtl;
         text-align: right;
         font-family: 'Tajawal', 'Cairo', sans-serif, Tahoma;
         background-color: #f4f6f8;
     }
-    
-    /* تنسيق القائمة الجانبية */
     section[data-testid="stSidebar"] {
         direction: rtl;
         text-align: right;
@@ -35,8 +36,6 @@ st.markdown(
     section[data-testid="stSidebar"] * {
         color: #ffffff !important;
     }
-
-    /* تصميم بطاقات العقارات التي تتحدث عن نفسها */
     .property-card-modern {
         background: #ffffff;
         border-radius: 16px;
@@ -53,8 +52,6 @@ st.markdown(
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
         border-color: #0e6251;
     }
-    
-    /* شريط تزييني علوي لكل بطاقة */
     .property-card-modern::before {
         content: "";
         position: absolute;
@@ -64,14 +61,12 @@ st.markdown(
         height: 5px;
         background: linear-gradient(90deg, #1b3b36, #0e6251);
     }
-
     .card-title {
         color: #1b3b36;
         font-size: 20px;
         font-weight: 800;
         margin-bottom: 10px;
     }
-
     .card-location {
         color: #64748b;
         font-size: 14px;
@@ -80,7 +75,6 @@ st.markdown(
         align-items: center;
         gap: 6px;
     }
-
     .card-price-badge {
         background-color: #e6f4f1;
         color: #0e6251;
@@ -91,7 +85,6 @@ st.markdown(
         display: inline-block;
         margin-bottom: 14px;
     }
-
     .card-details {
         color: #334155;
         font-size: 14px;
@@ -99,7 +92,6 @@ st.markdown(
         margin-bottom: 20px;
         min-height: 48px;
     }
-
     .card-footer {
         display: flex;
         justify-content: space-between;
@@ -107,12 +99,10 @@ st.markdown(
         border-top: 1px solid #f1f5f9;
         padding-top: 14px;
     }
-
     .card-date {
         color: #94a3b8;
         font-size: 12px;
     }
-
     .whatsapp-btn {
         background-color: #25d366;
         color: white !important;
@@ -129,7 +119,6 @@ st.markdown(
     .whatsapp-btn:hover {
         background-color: #1ebe5d;
     }
-
     h1, h2, h3 {
         color: #1b3b36;
         font-weight: 800;
@@ -139,17 +128,20 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-DB_NAME = "real_estate_agent.db"
+
+# دالة مساعدة للاتصال بقاعدة بيانات Turso السحابية
+def get_db_client():
+  return libsql_client.create_client_sync(
+      url=TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN
+  )
 
 
-# تهيئة قاعدة البيانات والتأكد من وجود كافة الأعمدة تلقائياً
+# تهيئة الجداول في قاعدة بيانات Turso السحابية
 def init_db():
   try:
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    client = get_db_client()
 
-    # جدول العقارات
-    cursor.execute("""
+    client.execute("""
             CREATE TABLE IF NOT EXISTS properties (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT,
@@ -163,8 +155,7 @@ def init_db():
             )
         """)
 
-    # جدول المشترين
-    cursor.execute("""
+    client.execute("""
             CREATE TABLE IF NOT EXISTS buyers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT,
@@ -176,8 +167,7 @@ def init_db():
             )
         """)
 
-    # جدول الاشتراكات
-    cursor.execute("""
+    client.execute("""
             CREATE TABLE IF NOT EXISTS subscriptions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 office_name TEXT,
@@ -190,8 +180,7 @@ def init_db():
             )
         """)
 
-    # جدول سجل النشاطات
-    cursor.execute("""
+    client.execute("""
             CREATE TABLE IF NOT EXISTS activity_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT,
@@ -199,23 +188,7 @@ def init_db():
                 message TEXT
             )
         """)
-
-    # فحص وإضافة الأعمدة الناقصة للمشترين
-    cursor.execute("PRAGMA table_info(buyers)")
-    buyer_columns = [col[1] for col in cursor.fetchall()]
-    if "country" not in buyer_columns:
-      cursor.execute("ALTER TABLE buyers ADD COLUMN country TEXT")
-    if "email" not in buyer_columns:
-      cursor.execute("ALTER TABLE buyers ADD COLUMN email TEXT")
-
-    # فحص وإضافة الأعمدة الناقصة للعقارات
-    cursor.execute("PRAGMA table_info(properties)")
-    prop_columns = [col[1] for col in cursor.fetchall()]
-    if "owner_phone" not in prop_columns:
-      cursor.execute("ALTER TABLE properties ADD COLUMN owner_phone TEXT")
-
-    conn.commit()
-    conn.close()
+    client.close()
   except Exception as e:
     pass
 
@@ -225,22 +198,19 @@ init_db()
 
 def add_log(log_type, message):
   try:
-    init_db()
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    client = get_db_client()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    cursor.execute(
+    client.execute(
         "INSERT INTO activity_logs (timestamp, log_type, message) VALUES (?, ?,"
         " ?)",
-        (timestamp, log_type, message),
+        [timestamp, log_type, message],
     )
-    conn.commit()
-    conn.close()
+    client.close()
   except:
     pass
 
 
-# القائمة الجانبية لإدارة الدخول (باستخدام زر تبديل آمن وسلس بدلاً من حقل الباسورد المعلق)
+# القائمة الجانبية لإدارة الدخول (بزر تبديل آمن)
 st.sidebar.markdown("### 🔐 بوابة الإدارة")
 is_admin = st.sidebar.toggle("تفعيل وضع المشرف (لوحة التحكم)", value=False)
 
@@ -262,7 +232,7 @@ one_month_ago = (datetime.now() - timedelta(days=30)).strftime(
 )
 
 # ==========================================
-# 1. منصة الزوار والمشترين (العرض الاحترافي الفاخر)
+# 1. منصة الزوار والمشترين
 # ==========================================
 if app_mode == "🌍 عرض منصة الزوار":
   st.markdown(
@@ -277,12 +247,11 @@ if app_mode == "🌍 عرض منصة الزوار":
       unsafe_allow_html=True,
   )
 
-  # شريط ترحيب وتوضيح للعملاء الخليجيين
   st.markdown(
       """
         <div style="background: linear-gradient(135deg, #1b3b36 0%, #0e6251 100%); color: white; padding: 25px; border-radius: 14px; margin-bottom: 35px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
             <h4 style="margin-top:0; color: #ffffff;">أهلاً بكم عملائنا الكرام من دول مجلس التعاون الخليجي 🇴🇲 🇸🇦 🇦🇪 🇰🇼 🇶🇦 🇧🇭</h4>
-            <p style="margin-bottom:0; line-height: 1.6;">نضع بين أيديكم محفظة عقارية حصرية ومختارة بعناية في محافظة مسقط. جميع عروضنا معتمدة، ومضمونة الحماية لحقوق الوساطة والتنسيق المباشر.</p>
+            <p style="margin-bottom:0; line-height: 1.6;">نضع بين أيديكم محفظة عقارية حصرية ومختارة بعناية في محافظة مسقط. جميع عروضنا معتمدة ومضمونة.</p>
         </div>
     """,
       unsafe_allow_html=True,
@@ -298,26 +267,24 @@ if app_mode == "🌍 عرض منصة الزوار":
   st.markdown("---")
   st.subheader("📋 أحدث العقارات الاستثمارية المتاحة")
 
-  init_db()
-  conn = sqlite3.connect(DB_NAME)
-  cursor = conn.cursor()
+  public_props = []
   try:
+    client = get_db_client()
     if filter_loc == "الكل":
-      cursor.execute(
+      rs = client.execute(
           "SELECT title, location, price, details, source_url, created_at FROM"
-          " properties WHERE created_at >= ? ORDER BY id DESC",
-          (one_month_ago,),
+          " properties ORDER BY id DESC"
       )
     else:
-      cursor.execute(
+      rs = client.execute(
           "SELECT title, location, price, details, source_url, created_at FROM"
-          " properties WHERE location = ? AND created_at >= ? ORDER BY id DESC",
-          (filter_loc, one_month_ago),
+          " properties WHERE location = ? ORDER BY id DESC",
+          [filter_loc],
       )
-    public_props = cursor.fetchall()
+    public_props = rs.rows
+    client.close()
   except:
-    public_props = []
-  conn.close()
+    pass
 
   if public_props:
     for i in range(0, len(public_props), 2):
@@ -355,16 +322,11 @@ if app_mode == "🌍 عرض منصة الزوار":
         " التحكم."
     )
 
-  # قسم تسجيل رغبة المشتري بتصميم فاخر
+  # قسم تسجيل رغبة المشتري
   st.markdown("---")
   st.markdown(
       "<h2 style='text-align: center; color: #1b3b36; margin-top: 30px;'>📝"
       " سجل رغبتك الاستثمارية</h2>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='text-align: center; color: #64748b; margin-bottom: 25px;'>دع"
-      " محركنا الذكي يطابق طلبك مع أحدث الفرص العقارية في مسقط فور وصولها.</p>",
       unsafe_allow_html=True,
   )
 
@@ -398,16 +360,13 @@ if app_mode == "🌍 عرض منصة الزوار":
 
     if submit_bp and bp_name:
       try:
-        init_db()
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        c.execute(
+        client = get_db_client()
+        client.execute(
             "INSERT INTO buyers (name, phone, email, country,"
             " preferred_location, max_budget) VALUES (?, ?, ?, ?, ?, ?)",
-            (bp_name, bp_phone, bp_email, bp_country, bp_loc, bp_budget),
+            [bp_name, bp_phone, bp_email, bp_country, bp_loc, bp_budget],
         )
-        conn.commit()
-        conn.close()
+        client.close()
         add_log(
             "SYSTEM",
             f"طلب استثماري جديد من ({bp_country}): {bp_name} في ({bp_loc})",
@@ -419,17 +378,9 @@ if app_mode == "🌍 عرض منصة الزوار":
       except Exception as ex:
         st.error(f"حدث خطأ أثناء حفظ الطلب: {ex}")
 
-  st.markdown("---")
-  st.markdown(
-      f"<p style='text-align: center; color: #64748b; font-size: 14px;'>📍"
-      f" مسقط، سلطنة عمان &nbsp;|&nbsp; 📧 {SENDER_EMAIL} &nbsp;|&nbsp; 📱 خدمة"
-      f" العملاء الرسمية: {BOT_WHATSAPP}</p>",
-      unsafe_allow_html=True,
-  )
-
 
 # ==========================================
-# 2. لوحة التحكم والإدارة الذكية (محرك الوسيط)
+# 2. لوحة التحكم والإدارة الذكية
 # ==========================================
 elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
   st.title("⚙️ لوحة تحكم الوسيط الذكي - شركة التخطيط العالمية للاستثمار")
@@ -451,11 +402,15 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
     st.subheader(
         "🎯 محرك مطابقة العقارات المسجلة بالبحث التلقائي عن المشترين"
     )
-    init_db()
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, title, location, price, created_at FROM properties")
-    properties_list = cursor.fetchall()
+    try:
+      client = get_db_client()
+      rs_props = client.execute(
+          "SELECT id, title, location, price, created_at FROM properties"
+      )
+      properties_list = rs_props.rows
+      client.close()
+    except:
+      properties_list = []
 
     if properties_list:
       selected_prop_id = st.selectbox(
@@ -469,18 +424,17 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
       )
 
       if selected_prop_id:
-        cursor.execute(
+        client = get_db_client()
+        p_data = client.execute(
             "SELECT title, location, price FROM properties WHERE id = ?",
-            (selected_prop_id,),
-        )
-        p_data = cursor.fetchone()
-
-        cursor.execute(
+            [selected_prop_id],
+        ).rows[0]
+        matched_buyers = client.execute(
             "SELECT name, phone, email, country, max_budget FROM buyers WHERE"
             " preferred_location = ? AND max_budget >= ?",
-            (p_data[1], p_data[2]),
-        )
-        matched_buyers = cursor.fetchall()
+            [p_data[1], p_data[2]],
+        ).rows
+        client.close()
 
         st.markdown(f"### النتائج للعقار: **{p_data[0]}** في ({p_data[1]})")
         if matched_buyers:
@@ -506,20 +460,20 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
           st.info("لا يوجد مشترين مسجلين بنفس المواصفات حالياً.")
     else:
       st.info("لا توجد عقارات مسجلة حالياً. قم بإضافة عقار جديد أولاً.")
-    conn.close()
 
   with tab2:
     st.subheader(
         "📢 صانع الإعلانات التسويقية الاحترافية (Instagram / WhatsApp / Twitter)"
     )
-    init_db()
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, title, location, price, details, created_at FROM properties"
-    )
-    ads_props = cursor.fetchall()
-    conn.close()
+    try:
+      client = get_db_client()
+      ads_props = client.execute(
+          "SELECT id, title, location, price, details, created_at FROM"
+          " properties"
+      ).rows
+      client.close()
+    except:
+      ads_props = []
 
     if ads_props:
       ad_choice = st.selectbox(
@@ -534,7 +488,6 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
 
       if ad_choice:
         chosen_p = next(ap for ap in ads_props if ap[0] == ad_choice)
-
         generated_ad_text = (
             f"🌟 **فرصة استثمارية عقارية كبرى في مسقط (عروض 2026)** 🇴🇲\n\n"
             f"📍 **الموقع:** {chosen_p[2]}\n"
@@ -542,35 +495,31 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             f"💰 **السعر التنافسي:** {chosen_p[3]:,} ريال عماني\n\n"
             f"📝 **التفاصيل:** {chosen_p[4]}\n\n"
             f"✨ فرصة ممتازة للمستثمرين من سلطنة عمان وسائر دول مجلس التعاون"
-            f" الخليجي (السعودية، الإمارات، الكويت، قطر، البحرين).\n\n"
+            f" الخليجي.\n\n"
             f"📞 **للتواصل المباشر مع فريق الوساطة وحجز العقار عبر الرقم"
             f" الرسمي المعتمد:**\n"
             f"واتساب الشركة: `{BOT_WHATSAPP}`\n"
             f"البريد الإلكتروني: `{SENDER_EMAIL}`\n\n"
             f"#عقارات_مسقط #استثمار_عقاري #سلطنة_عمان #عقارات_الخليج"
-            f" #مستثمر_خليجي #شركة_التخطيط_العالمية"
+            f" #شركة_التخطيط_العالمية"
         )
-
-        st.text_area(
-            "النص الإعلاني الجاهز:", generated_ad_text, height=250
-        )
-        st.success(
-            "💡 نصيحة تسويقية: الإعلان جاهز للنسخ والنشر المباشر على منصات"
-            " التواصل الاجتماعي."
-        )
+        st.text_area("النص الإعلاني الجاهز:", generated_ad_text, height=250)
+        st.success("💡 الإعلان جاهز للنسخ والنشر المباشر.")
     else:
       st.info("لا توجد عقارات مسجلة لتوليد الإعلانات منها.")
 
   with tab3:
     st.subheader("قائمة العقارات وأرقام الملاك الحقيقية (سرية للوسيط)")
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, title, location, price, owner_phone, created_at FROM"
-        " properties ORDER BY id DESC"
-    )
-    all_p = cursor.fetchall()
-    conn.close()
+    try:
+      client = get_db_client()
+      all_p = client.execute(
+          "SELECT id, title, location, price, owner_phone, created_at FROM"
+          " properties ORDER BY id DESC"
+      ).rows
+      client.close()
+    except:
+      all_p = []
+
     if all_p:
       for ap in all_p:
         st.markdown(
@@ -582,14 +531,16 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
 
   with tab4:
     st.subheader("قاعدة بيانات المستثمرين المشترين المسجلين")
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT name, phone, email, country, preferred_location, max_budget"
-        " FROM buyers"
-    )
-    all_b = cursor.fetchall()
-    conn.close()
+    try:
+      client = get_db_client()
+      all_b = client.execute(
+          "SELECT name, phone, email, country, preferred_location, max_budget"
+          " FROM buyers"
+      ).rows
+      client.close()
+    except:
+      all_b = []
+
     if all_b:
       for ab in all_b:
         st.markdown(
@@ -605,14 +556,16 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
         f"**البنك:** {BANK_INFO['bank_name']} | **الآيبان:**"
         f" `{BANK_INFO['iban']}`"
     )
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT SUM(amount_paid) FROM subscriptions WHERE payment_status = 'تم"
-        " التحويل للحساب البنكي'"
-    )
-    tot = cursor.fetchone()[0] or 0.0
-    conn.close()
+    try:
+      client = get_db_client()
+      tot_res = client.execute(
+          "SELECT SUM(amount_paid) FROM subscriptions WHERE payment_status = 'تم"
+          " التحويل للحساب البنكي'"
+      ).rows
+      tot = (tot_res and tot_res[0][0]) or 0.0
+      client.close()
+    except:
+      tot = 0.0
     st.metric("إجمالي الإيرادات", f"{tot} ر.ع")
 
   with tab6:
@@ -628,25 +581,26 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
       )
       m_sub = st.form_submit_button("نشر العقار الجديد في المنصة العامة")
       if m_sub and m_title:
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        c.execute(
-            "INSERT INTO properties (title, location, price, details,"
-            " source_url, owner_phone, status, created_at) VALUES (?, ?, ?, ?,"
-            " ?, ?, ?, ?)",
-            (
-                m_title,
-                m_loc,
-                m_price,
-                m_details,
-                "https://gpic.om",
-                m_phone,
-                "نشط",
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            ),
-        )
-        conn.commit()
-        conn.close()
-        st.success(
-            "تم إضافة العقار بنجاح وتوثيقه ضمن منصة التخطيط العالمية!"
-        )
+        try:
+          client = get_db_client()
+          client.execute(
+              "INSERT INTO properties (title, location, price, details,"
+              " source_url, owner_phone, status, created_at) VALUES (?, ?, ?, ?,"
+              " ?, ?, ?, ?)",
+              [
+                  m_title,
+                  m_loc,
+                  m_price,
+                  m_details,
+                  "https://gpic.om",
+                  m_phone,
+                  "نشط",
+                  datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+              ],
+          )
+          client.close()
+          st.success(
+              "تم إضافة العقار وحفظه بنجاح في قاعدة بيانات Turso السحابية!"
+          )
+        except Exception as e:
+          st.error(f"حدث خطأ أثناء الحفظ: {e}")
