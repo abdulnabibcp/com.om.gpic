@@ -1,13 +1,9 @@
 from datetime import datetime, timedelta
-import libsql_client
+import sqlite3
 import streamlit as st
 
 # استيراد البيانات الحساسة والإعدادات من الملف المنفصل
 from config import BANK_INFO, BOT_WHATSAPP, SENDER_EMAIL, SENDER_PASSWORD
-
-# بيانات الاتصال بقاعدة بيانات Turso السحابية
-TURSO_DATABASE_URL = "ضع_رابط_Turso_هنا"  # ضع رابط الـ URL الخاص بك هنا
-TURSO_AUTH_TOKEN = "ضع_رمز_التحقق_Token_Here"  # ضع الـ Token الخاص بك هنا
 
 # كلمة المرور السرية الخاصة بلوحة تحكم المشرف (الخاصة بالشركة)
 ADMIN_PASSWORD = "GPI*2025"
@@ -136,20 +132,20 @@ st.markdown(
 )
 
 
-# دالة مساعدة للاتصال بقاعدة بيانات Turso السحابية
-def get_db_client():
-  return libsql_client.create_client_sync(
-      url=TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN
-  )
+# دالة الاتصال بقاعدة البيانات المحلية الآمنة لتجنب أخطاء الـ URL نهائياً
+def get_db_connection():
+  conn = sqlite3.connect("gpic_buildings.db")
+  return conn
 
 
-# تهيئة الجداول في قاعدة بيانات Turso السحابية (متضمنة جدول البنايات الاستثمارية الكبرى)
+# تهيئة الجداول في قاعدة البيانات
 def init_db():
   try:
-    client = get_db_client()
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
     # جدول البنايات الاستثمارية (سكني، تجاري، صناعي)
-    client.execute("""
+    cursor.execute("""
             CREATE TABLE IF NOT EXISTS buildings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT,
@@ -164,7 +160,7 @@ def init_db():
             )
         """)
 
-    client.execute("""
+    cursor.execute("""
             CREATE TABLE IF NOT EXISTS properties (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT,
@@ -178,7 +174,7 @@ def init_db():
             )
         """)
 
-    client.execute("""
+    cursor.execute("""
             CREATE TABLE IF NOT EXISTS buyers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT,
@@ -191,7 +187,7 @@ def init_db():
             )
         """)
 
-    client.execute("""
+    cursor.execute("""
             CREATE TABLE IF NOT EXISTS subscriptions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 office_name TEXT,
@@ -204,7 +200,7 @@ def init_db():
             )
         """)
 
-    client.execute("""
+    cursor.execute("""
             CREATE TABLE IF NOT EXISTS activity_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT,
@@ -212,7 +208,8 @@ def init_db():
                 message TEXT
             )
         """)
-    client.close()
+    conn.commit()
+    conn.close()
   except Exception as e:
     pass
 
@@ -222,14 +219,16 @@ init_db()
 
 def add_log(log_type, message):
   try:
-    client = get_db_client()
+    conn = get_db_connection()
+    cursor = conn.cursor()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    client.execute(
+    cursor.execute(
         "INSERT INTO activity_logs (timestamp, log_type, message) VALUES (?, ?,"
         " ?)",
-        [timestamp, log_type, message],
+        (timestamp, log_type, message),
     )
-    client.close()
+    conn.commit()
+    conn.close()
   except:
     pass
 
@@ -312,21 +311,22 @@ if app_mode == "🌍 عرض منصة الزوار":
 
   public_buildings = []
   try:
-    client = get_db_client()
+    conn = get_db_connection()
+    cursor = conn.cursor()
     if b_filter_type == "الكل":
-      rs_b = client.execute(
+      cursor.execute(
           "SELECT id, title, type, location, units_count, annual_income,"
           " price, roi, google_maps, created_at FROM buildings ORDER BY id DESC"
       )
     else:
-      rs_b = client.execute(
+      cursor.execute(
           "SELECT id, title, type, location, units_count, annual_income,"
           " price, roi, google_maps, created_at FROM buildings WHERE type = ?"
           " ORDER BY id DESC",
-          [b_filter_type],
+          (b_filter_type,),
       )
-    public_buildings = rs_b.rows
-    client.close()
+    public_buildings = cursor.fetchall()
+    conn.close()
   except:
     pass
 
@@ -430,12 +430,13 @@ if app_mode == "🌍 عرض منصة الزوار":
 
     if submit_bp and bp_name:
       try:
-        client = get_db_client()
-        client.execute(
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
             "INSERT INTO buyers (name, phone, email, country,"
             " preferred_location, max_budget, deal_status) VALUES (?, ?, ?, ?,"
             " ?, ?, ?)",
-            [
+            (
                 bp_name,
                 bp_phone,
                 bp_email,
@@ -443,9 +444,10 @@ if app_mode == "🌍 عرض منصة الزوار":
                 bp_loc,
                 bp_budget,
                 "مهتم بـ بنايات",
-            ],
+            ),
         )
-        client.close()
+        conn.commit()
+        conn.close()
         add_log(
             "SYSTEM",
             f"طلب استثمار بناية من ({bp_country}): {bp_name} بميزانية {bp_budget}"
@@ -522,12 +524,13 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
             else 0.0
         )
         try:
-          client = get_db_client()
-          client.execute(
+          conn = get_db_connection()
+          cursor = conn.cursor()
+          cursor.execute(
               "INSERT INTO buildings (title, type, location, units_count,"
               " annual_income, price, roi, google_maps, created_at) VALUES (?,"
               " ?, ?, ?, ?, ?, ?, ?, ?)",
-              [
+              (
                   b_title_in,
                   b_type_in,
                   b_loc_in,
@@ -537,12 +540,12 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
                   calculated_roi,
                   b_maps_in,
                   datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-              ],
+              ),
           )
-          client.close()
+          conn.commit()
+          conn.close()
           st.success(
-              f"✅ تم حفظ البناية بنجاح في سحابة Turso! العائد المحسوب (ROI):"
-              f" {calculated_roi}%"
+              f"✅ تم حفظ البناية بنجاح! العائد المحسوب (ROI): {calculated_roi}%"
           )
         except Exception as e:
           st.error(f"خطأ أثناء الحفظ: {e}")
@@ -550,12 +553,14 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
     st.markdown("---")
     st.subheader("📲 توليد رسالة واتساب جاهزة للبنايات المسجلة للإرسال الفوري")
     try:
-      client = get_db_client()
-      b_list_res = client.execute(
+      conn = get_db_connection()
+      cursor = conn.cursor()
+      cursor.execute(
           "SELECT id, title, type, location, units_count, annual_income, price,"
           " roi, google_maps FROM buildings ORDER BY id DESC"
-      ).rows
-      client.close()
+      )
+      b_list_res = cursor.fetchall()
+      conn.close()
     except:
       b_list_res = []
 
@@ -621,12 +626,14 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
   with tab2:
     st.subheader("🏠 قائمة البنايات الاستثمارية المسجلة (سرية للوسيط)")
     try:
-      client = get_db_client()
-      all_buildings = client.execute(
+      conn = get_db_connection()
+      cursor = conn.cursor()
+      cursor.execute(
           "SELECT id, title, type, location, units_count, annual_income, price,"
           " roi, created_at FROM buildings ORDER BY id DESC"
-      ).rows
-      client.close()
+      )
+      all_buildings = cursor.fetchall()
+      conn.close()
     except:
       all_buildings = []
 
@@ -644,12 +651,14 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
   with tab3:
     st.subheader("👥 قاعدة بيانات المستثمرين والمهتمين بالبنايات والصفقات")
     try:
-      client = get_db_client()
-      all_b = client.execute(
+      conn = get_db_connection()
+      cursor = conn.cursor()
+      cursor.execute(
           "SELECT name, phone, email, country, preferred_location, max_budget,"
           " deal_status FROM buyers"
-      ).rows
-      client.close()
+      )
+      all_b = cursor.fetchall()
+      conn.close()
     except:
       all_b = []
 
@@ -677,14 +686,16 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
       import pandas as pd
 
       try:
-        client = get_db_client()
+        conn = get_db_connection()
+        cursor = conn.cursor()
         if exp_choice == "قائمة البنايات الاستثمارية":
-          res_exp = client.execute(
+          cursor.execute(
               "SELECT id, title, type, location, units_count, annual_income,"
               " price, roi, google_maps, created_at FROM buildings"
           )
+          rows = cursor.fetchall()
           df_exp = pd.DataFrame(
-              res_exp.rows,
+              rows,
               columns=[
                   "ID",
                   "العنوان",
@@ -700,12 +711,13 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
           )
           fname = "buildings_report.csv"
         else:
-          res_exp = client.execute(
+          cursor.execute(
               "SELECT id, name, phone, email, country, preferred_location,"
               " max_budget, deal_status FROM buyers"
           )
+          rows = cursor.fetchall()
           df_exp = pd.DataFrame(
-              res_exp.rows,
+              rows,
               columns=[
                   "ID",
                   "الاسم",
@@ -718,7 +730,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
               ],
           )
           fname = "investors_report.csv"
-        client.close()
+        conn.close()
 
         csv_bytes = df_exp.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
@@ -739,13 +751,15 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
         f" `{BANK_INFO['iban']}`"
     )
     try:
-      client = get_db_client()
-      tot_res = client.execute(
+      conn = get_db_connection()
+      cursor = conn.cursor()
+      cursor.execute(
           "SELECT SUM(amount_paid) FROM subscriptions WHERE payment_status = 'تم"
           " التحويل للحساب البنكي'"
-      ).rows
-      tot = (tot_res and tot_res[0][0]) or 0.0
-      client.close()
+      )
+      tot_res = cursor.fetchone()
+      tot = (tot_res and tot_res[0]) or 0.0
+      conn.close()
     except:
       tot = 0.0
     st.metric("إجمالي التحويلات والإيرادات", f"{tot:,.2f} ر.ع")
