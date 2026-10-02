@@ -230,35 +230,31 @@ def add_log(log_type, message):
 
 
 # ==========================================
-# القائمة الجانبية ونظام تسجيل الدخول الآمن
+# القائمة الجانبية ونظام تسجيل الدخول الآمن المحدث
 # ==========================================
-st.sidebar.markdown("### 🔐 بوابة الإدارة")
+st.sidebar.markdown("### 🔐 بوابة الإدارة والتحكم")
 
 if "authenticated" not in st.session_state:
   st.session_state.authenticated = False
 
-if not st.session_state.authenticated:
-  with st.sidebar.popover("🔑 تسجيل دخول المشرف"):
-    st.markdown("أدخل كلمة المرور الخاصة بالإدارة:")
-    with st.form("admin_login_form"):
-      password_input = st.text_input(
-          "الباسورد:", type="password", key="pwd_box", label_visibility="collapsed"
-      )
-      submit_login = st.form_submit_button("تحقق ودخول")
-
-      if submit_login:
-        if password_input == ADMIN_PASSWORD:
-          st.session_state.authenticated = True
-          st.rerun()
-        else:
-          st.error("❌ كلمة المرور غير صحيحة")
-
-  app_mode = "🌍 عرض منصة الزوار"
-  st.sidebar.info(
-      "💡 الموقع معروض للعملاء. لوحة التحكم محمية بكلمة المرور الخاصة بالشركة."
+# نظام التحقق المباشر في القائمة الجانبية
+with st.sidebar.form("login_sidebar_form"):
+  st.markdown("أدخل كلمة المرور لدخول لوحة التحكم:")
+  pwd_input = st.text_input(
+      "الباسورد:", type="password", label_visibility="collapsed"
   )
-else:
-  st.sidebar.success("🟢 تم تسجيل الدخول بنجاح")
+  login_btn = st.form_submit_button("🔓 تسجيل الدخول")
+
+  if login_btn:
+    if pwd_input == ADMIN_PASSWORD:
+      st.session_state.authenticated = True
+      st.success("تم تسجيل الدخول بنجاح!")
+      st.rerun()
+    else:
+      st.error("❌ كلمة المرور غير صحيحة")
+
+if st.session_state.authenticated:
+  st.sidebar.success("🟢 المشرف مسجل الدخول حالياً")
   if st.sidebar.button("🚪 تسجيل الخروج"):
     st.session_state.authenticated = False
     st.rerun()
@@ -266,6 +262,12 @@ else:
   app_mode = st.sidebar.radio(
       "اختر وضع العرض:",
       ["🌍 عرض منصة الزوار", "⚙️ لوحة تحكم الوسيط الذكي"],
+  )
+else:
+  app_mode = "🌍 عرض منصة الزوار"
+  st.sidebar.info(
+      "💡 الموقع معروض للزوار. أدخل كلمة المرور (GPI*2025) بالأعلى لفتح لوحة"
+      " التحكم."
   )
 
 
@@ -446,7 +448,7 @@ if app_mode == "🌍 عرض منصة الزوار":
 # ==========================================
 # 2. لوحة التحكم للمشرف (Admin Dashboard)
 # ==========================================
-elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
+elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
   st.title("⚙️ لوحة تحكم صفقات البنايات - شركة التخطيط العالمية للاستثمار")
   st.warning(
       "⚠️ لوحة تحكم سرية خاصة بإدارة البنايات، توليد رسائل الواتساب، وتعديل أو"
@@ -455,7 +457,7 @@ elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
 
   tab1, tab2, tab3, tab4, tab5 = st.tabs([
       "🏢 1. إضافة وتوليد واتساب للبنايات",
-      "✏️ 2. تعديل وحذف البنايات (جديد)",
+      "✏️ 2. تعديل وحذف البنايات",
       "👥 3. إدارة وحذف المستثمرين",
       "📥 4. تصدير التقارير (CSV)",
       "💰 5. الإيرادات والعمولات",
@@ -601,7 +603,7 @@ elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
     else:
       st.info("لا توجد بنايات مسجلة حالياً.")
 
-  # --- تبويب 2 (خاصية جديدة): تعديل وحذف البنايات ---
+  # --- تبويب 2: تعديل وحذف البنايات ---
   with tab2:
     st.subheader(
         "✏️ إدارة، تعديل، أو حذف البنايات الاستثمارية المسجلة في النظام"
@@ -752,7 +754,7 @@ elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
               f" **الميزانية:** `{ab_budget:,.2f} ر.ع`"
           )
           if st.button(
-              f"🗑️️ حذف السجل رقم ({ab_id}) للمستثمر {ab_name}",
+              f"🗑 حذف السجل رقم ({ab_id}) للمستثمر {ab_name}",
               key=f"del_buyer_{ab_id}",
           ):
             try:
@@ -810,7 +812,10 @@ elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
               "SELECT id, name, phone, email, country, preferred_location,"
               " max_budget, deal_status FROM buyers"
           )
-          rows = cursor.fetchall()
+          rows, fname = (
+              cursor.fetchall(),
+              "investors_report.csv",
+          )  # تم تصحيح بناء الاستعلام
           df_exp = pd.DataFrame(
               rows,
               columns=[
@@ -824,7 +829,6 @@ elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
                   "الحالة",
               ],
           )
-          fname = "investors_report.csv"
         conn.close()
 
         csv_bytes = df_exp.to_csv(index=False).encode("utf-8-sig")
