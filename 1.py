@@ -9,8 +9,8 @@ from config import BANK_INFO, BOT_WHATSAPP, SENDER_EMAIL, SENDER_PASSWORD
 TURSO_DATABASE_URL = "ضع_رابط_Turso_هنا"  # ضع رابط الـ URL الخاص بك هنا
 TURSO_AUTH_TOKEN = "ضع_رمز_التحقق_Token_Here"  # ضع الـ Token الخاص بك هنا
 
-# كلمة المرور السرية الخاصة بلوحة تحكم المشرف
-ADMIN_PASSWORD = "123"  # يمكنك تغييرها هنا إلى أي كلمة مرور تريدها
+# كلمة المرور السرية الخاصة بلوحة تحكم المشرف (الخاصة بالشركة)
+ADMIN_PASSWORD = "GPI*2025"
 
 # إعداد الصفحة وتصميم الواجهة الفاخرة
 st.set_page_config(
@@ -21,7 +21,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# حقن أكواد CSS لتصميم البطاقات العصرية، مع تثبيت حقل الباسورد باتجاه يساري (LTR) لحل المشكلة جذرياً
+# حقن أكواد CSS لتصميم البطاقات العصرية وتنسيق الواجهة
 st.markdown(
     """
     <style>
@@ -39,7 +39,6 @@ st.markdown(
     section[data-testid="stSidebar"] * {
         color: #ffffff !important;
     }
-    /* حل جذري: إجبار خانة الباسورد على الاتجاه اليساري الإنجليزي لمنع تداخل الحروف واختفائها */
     input[type="password"] {
         direction: ltr !important;
         text-align: left !important;
@@ -144,10 +143,26 @@ def get_db_client():
   )
 
 
-# تهيئة الجداول في قاعدة بيانات Turso السحابية
+# تهيئة الجداول في قاعدة بيانات Turso السحابية (متضمنة جدول البنايات الاستثمارية الكبرى)
 def init_db():
   try:
     client = get_db_client()
+
+    # جدول البنايات الاستثمارية (سكني، تجاري، صناعي)
+    client.execute("""
+            CREATE TABLE IF NOT EXISTS buildings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
+                type TEXT,
+                location TEXT,
+                units_count INTEGER,
+                annual_income REAL,
+                price REAL,
+                roi REAL,
+                google_maps TEXT,
+                created_at TEXT
+            )
+        """)
 
     client.execute("""
             CREATE TABLE IF NOT EXISTS properties (
@@ -171,7 +186,8 @@ def init_db():
                 email TEXT,
                 country TEXT,
                 preferred_location TEXT,
-                max_budget REAL
+                max_budget REAL,
+                deal_status TEXT DEFAULT 'مهتم جديد'
             )
         """)
 
@@ -219,7 +235,7 @@ def add_log(log_type, message):
 
 
 # ==========================================
-# القائمة الجانبية ونظام تسجيل الدخول الآمن بـ Popover Button
+# القائمة الجانبية ونظام تسجيل الدخول الآمن
 # ==========================================
 st.sidebar.markdown("### 🔐 بوابة الإدارة")
 
@@ -227,7 +243,6 @@ if "authenticated" not in st.session_state:
   st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-  # استخدام زر تفاعلي (Popover) يفتح نافذة منفصلة لكي تكون حرة تماماً من مشاكل اتجاه الكتابة
   with st.sidebar.popover("🔑 تسجيل دخول المشرف"):
     st.markdown("أدخل كلمة المرور الخاصة بالإدارة:")
     with st.form("admin_login_form"):
@@ -245,7 +260,8 @@ if not st.session_state.authenticated:
 
   app_mode = "🌍 عرض منصة الزوار"
   st.sidebar.info(
-      "💡 الموقع معروض للعملاء. لوحة التحكم محمية ولا تفتح إلا للمسؤول."
+      "💡 الموقع معروض حصرياً للعملاء. لوحة التحكم محمية بكلمة المرور الخاصة"
+      " بالشركة."
   )
 else:
   st.sidebar.success("🟢 تم تسجيل الدخول بنجاح")
@@ -258,12 +274,9 @@ else:
       ["🌍 عرض منصة الزوار", "⚙️ لوحة تحكم الوسيط الذكي"],
   )
 
-one_month_ago = (datetime.now() - timedelta(days=30)).strftime(
-    "%Y-%m-%d %H:%M:%S"
-)
 
 # ==========================================
-# 1. منصة الزوار والمشترين
+# 1. منصة الزوار (عرض البنايات الاستثمارية والعقارات)
 # ==========================================
 if app_mode == "🌍 عرض منصة الزوار":
   st.markdown(
@@ -273,75 +286,88 @@ if app_mode == "🌍 عرض منصة الزوار":
   )
   st.markdown(
       "<h3 style='text-align: center; color: #0e6251; font-weight: 400;"
-      " margin-bottom: 30px;'>منصة الفرص العقارية الاستثمارية الفاخرة في سلطنة"
-      " عمان والخليج</h3>",
+      " margin-bottom: 30px;'>منصة صفقات البنايات والعقارات الاستثمارية الكبرى في"
+      " سلطنة عمان والخليج</h3>",
       unsafe_allow_html=True,
   )
 
   st.markdown(
       """
         <div style="background: linear-gradient(135deg, #1b3b36 0%, #0e6251 100%); color: white; padding: 25px; border-radius: 14px; margin-bottom: 35px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            <h4 style="margin-top:0; color: #ffffff;">أهلاً بكم عملائنا الكرام من دول مجلس التعاون الخليجي 🇴🇲 🇸🇦 🇦🇪 🇰🇼 🇶🇦 🇧🇭</h4>
-            <p style="margin-bottom:0; line-height: 1.6;">نضع بين أيديكم محفظة عقارية حصرية ومختارة بعناية في محافظة مسقط. جميع عروضنا معتمدة ومضمونة.</p>
+            <h4 style="margin-top:0; color: #ffffff;">أهلاً بكم عملائنا الكرام والمستثمرين من دول مجلس التعاون الخليجي 🇴🇲 🇸🇦 🇦🇪 🇰🇼 🇶🇦 🇧🇭</h4>
+            <p style="margin-bottom:0; line-height: 1.6;">نختص بالصفقات الكبرى (البنايات السكنية، التجارية، والصناعية) في مسقط وسلطنة عمان بعوائد استثمارية مضمونة.</p>
         </div>
     """,
       unsafe_allow_html=True,
   )
 
-  col1, col2 = st.columns([1, 2])
-  with col1:
-    filter_loc = st.selectbox(
-        "📍 تصفية العقارات حسب المنطقة:",
-        ["الكل", "مسقط", "القرم", "الخوض", "بوشر", "العامرات"],
-    )
+  # فلترة البنايات حسب النوع
+  b_filter_type = st.selectbox(
+      "🏢 تصفية صفقات البنايات حسب القطاع:",
+      ["الكل", "سكنية", "تجارية", "صناعية"],
+  )
 
   st.markdown("---")
-  st.subheader("📋 أحدث العقارات الاستثمارية المتاحة")
+  st.subheader("📋 محفظة البنايات الاستثمارية المتاحة للبيع")
 
-  public_props = []
+  public_buildings = []
   try:
     client = get_db_client()
-    if filter_loc == "الكل":
-      rs = client.execute(
-          "SELECT title, location, price, details, source_url, created_at FROM"
-          " properties ORDER BY id DESC"
+    if b_filter_type == "الكل":
+      rs_b = client.execute(
+          "SELECT id, title, type, location, units_count, annual_income,"
+          " price, roi, google_maps, created_at FROM buildings ORDER BY id DESC"
       )
     else:
-      rs = client.execute(
-          "SELECT title, location, price, details, source_url, created_at FROM"
-          " properties WHERE location = ? ORDER BY id DESC",
-          [filter_loc],
+      rs_b = client.execute(
+          "SELECT id, title, type, location, units_count, annual_income,"
+          " price, roi, google_maps, created_at FROM buildings WHERE type = ?"
+          " ORDER BY id DESC",
+          [b_filter_type],
       )
-    public_props = rs.rows
+    public_buildings = rs_b.rows
     client.close()
   except:
     pass
 
-  if public_props:
-    for i in range(0, len(public_props), 2):
+  if public_buildings:
+    for i in range(0, len(public_buildings), 2):
       cols = st.columns(2)
       for j in range(2):
-        if i + j < len(public_props):
-          pp = public_props[i + j]
+        if i + j < len(public_buildings):
+          b_item = public_buildings[i + j]
+          b_id, b_title, b_type, b_loc, b_units, b_income, b_price, b_roi, b_maps, b_date = (
+              b_item
+          )
           with cols[j]:
-            whatsapp_link = (
-                f"https://wa.me/{BOT_WHATSAPP.replace('+', '')}?text="
-                f"مرحباً، أهتم بالعقار ({pp[0]}) في موقع ({pp[1]}) بسعر"
-                f" ({pp[2]} ر.ع). أرجو التواصل للتفاصيل."
+            whatsapp_msg = (
+                f"مرحباً، أهتم بصفقة البناية ({b_title}) - نوع ({b_type}) في"
+                f" ({b_loc}) بسعر ({b_price:,.2f} ر.ع) وعائد ({b_roi}%). أرجو"
+                f" التنسيق للتفاصيل."
             )
+            import urllib.parse
+
+            wa_link = f"https://wa.me/{BOT_WHATSAPP.replace('+', '')}?text={urllib.parse.quote(whatsapp_msg)}"
 
             st.markdown(
                 f"""
                     <div class="property-card-modern">
-                        <div class="card-title">🏢 {pp[0]}</div>
-                        <div class="card-location">📍 موقع العقار: <b>{pp[1]}</b></div>
+                        <div class="card-title">🏢 {b_title}</div>
+                        <div class="card-location">📍 الموقع: <b>{b_loc}</b> | النوع: <b>{b_type}</b></div>
                         <div>
-                            <span class="card-price-badge">💰 {pp[2]:,} ر.ع</span>
+                            <span class="card-price-badge">💰 {b_price:,.2f} ر.ع</span>
                         </div>
-                        <div class="card-details">{pp[3]}</div>
+                        <div class="card-details">
+                            🚪 عدد الوحدات: <b>{b_units}</b><br>
+                            💵 الدخل السنوي: <b>{b_income:,.2f} ر.ع</b><br>
+                            📈 العائد السنوي (ROI): <b>~{b_roi}%</b>
+                        </div>
+                        <div style="margin-bottom: 14px;">
+                            <a href="{b_maps}" target="_blank" style="color: #0e6251; font-weight: bold; text-decoration: underline;">📍 رابط موقع البناية على الخريطة</a>
+                        </div>
                         <div class="card-footer">
-                            <span class="card-date">🕒 أُضيف في: {pp[5].split(' ')[0]}</span>
-                            <a href="{whatsapp_link}" target="_blank" class="whatsapp-btn">💬 تواصل واتساب</a>
+                            <span class="card-date">🕒 أُضيف في: {b_date.split(' ')[0]}</span>
+                            <a href="{wa_link}" target="_blank" class="whatsapp-btn">💬 تواصل واتساب الصفقة</a>
                         </div>
                     </div>
                 """,
@@ -349,23 +375,23 @@ if app_mode == "🌍 عرض منصة الزوار":
             )
   else:
     st.info(
-        "لا توجد عقارات مسجلة في المنصة حالياً. قم بإضافة عقارات جديدة عبر لوحة"
-        " التحكم."
+        "لا توجد بنايات استثمارية معروضة حالياً. تابعنا قريباً لأحدث صفقات"
+        " البنايات."
     )
 
-  # قسم تسجيل رغبة المشتري
+  # قسم تسجيل رغبة المستثمر
   st.markdown("---")
   st.markdown(
       "<h2 style='text-align: center; color: #1b3b36; margin-top: 30px;'>📝"
-      " سجل رغبتك الاستثمارية</h2>",
+      " سجل رغبتك الاستثمارية في البنايات</h2>",
       unsafe_allow_html=True,
   )
 
   with st.form("public_buyer_form"):
     c1, c2 = st.columns(2)
     with c1:
-      bp_name = st.text_input("الاسم الكريم")
-      bp_phone = st.text_input("رقم الهاتف مع رمز الدولة (مثال: +9665XXXXXXXX)")
+      bp_name = st.text_input("الاسم الكريم / اسم الشركة الاستثمارية")
+      bp_phone = st.text_input("رقم الهاتف مع رمز الدولة (مثال: +9689XXXXXXXX)")
       bp_email = st.text_input("البريد الإلكتروني")
     with c2:
       bp_country = st.selectbox(
@@ -381,192 +407,240 @@ if app_mode == "🌍 عرض منصة الزوار":
       )
       bp_loc = st.selectbox(
           "المنطقة المطلوبة في مسقط",
-          ["مسقط", "القرم", "الخوض", "بوشر", "العامرات", "الموالح"],
+          ["مسقط", "القرم", "الخوض", "بوشر", "العامرات", "الموالح", "البريمي"],
       )
       bp_budget = st.number_input(
-          "الحد الأقصى للميزانية المرصودة (ريال عماني)", value=100000.0
+          "الحد الأقصى للميزانية المرصودة للبنايات (ريال عماني)",
+          value=500000.0,
+          step=50000.0,
       )
 
-    submit_bp = st.form_submit_button("إرسال الطلب لفريق الاستثمار والوساطة")
+    submit_bp = st.form_submit_button(
+        "إرسال الطلب لفريق الصفقات الكبرى والوساطة"
+    )
 
     if submit_bp and bp_name:
       try:
         client = get_db_client()
         client.execute(
             "INSERT INTO buyers (name, phone, email, country,"
-            " preferred_location, max_budget) VALUES (?, ?, ?, ?, ?, ?)",
-            [bp_name, bp_phone, bp_email, bp_country, bp_loc, bp_budget],
+            " preferred_location, max_budget, deal_status) VALUES (?, ?, ?, ?,"
+            " ?, ?, ?)",
+            [
+                bp_name,
+                bp_phone,
+                bp_email,
+                bp_country,
+                bp_loc,
+                bp_budget,
+                "مهتم بـ بنايات",
+            ],
         )
         client.close()
         add_log(
             "SYSTEM",
-            f"طلب استثماري جديد من ({bp_country}): {bp_name} في ({bp_loc})",
+            f"طلب استثمار بناية من ({bp_country}): {bp_name} بميزانية {bp_budget}"
+            " ر.ع",
         )
         st.success(
-            "تم استلام طلبكم بنجاح! سيتواصل معكم فريق شركة التخطيط العالمية"
-            " للاستثمار قريباً."
+            "تم استلام طلبكم بنجاح! سيتواصل معكم خبير صفقات البنايات بـ شركة"
+            " التخطيط العالمية قريباً."
         )
       except Exception as ex:
         st.error(f"حدث خطأ أثناء حفظ الطلب: {ex}")
 
 
 # ==========================================
-# 2. لوحة التحكم والإدارة الذكية
+# 2. لوحة التحكم للمشرف (Admin Dashboard)
 # ==========================================
 elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
-  st.title("⚙️ لوحة تحكم الوسيط الذكي - شركة التخطيط العالمية للاستثمار")
+  st.title("⚙️ لوحة تحكم صفقات البنايات - شركة التخطيط العالمية للاستثمار")
   st.warning(
-      "⚠️ لوحة تحكم سرية خاصة بإدارة العقارات، مطابقة المشترين، وتوليد"
-      " الإعلانات التسويقية."
+      "⚠️ لوحة تحكم سرية خاصة بإدارة البنايات الاستثمارية، توليد رسائل الواتساب،"
+      " وإدارة المستثمرين."
   )
 
-  tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-      "🔍 مطابقة المشترين (AI Matchmaker)",
-      "📢 صانع الإعلانات (GCC Ads)",
-      "🏠 إدارة العقارات (سرية)",
-      "👥 قاعدة المستثمرين",
-      "💰 الإيرادات (بنك مسقط)",
-      "➕ إضافة عقار جديد",
+  tab1, tab2, tab3, tab4, tab5 = st.tabs([
+      "🏢 1. إضافة وتوليد رسائل واتساب للبنايات (جديد)",
+      "📋 2. إدارة وعرض البنايات المسجلة",
+      "👥 3. قاعدة المستثمرين والمشترين",
+      "📥 4. تصدير التقارير (CSV)",
+      "💰 5. الإيرادات والعمولات (بنك مسقط)",
   ])
 
+  # --- تبويب 1: إضافة بناية وتوليد رسائل واتساب ---
   with tab1:
     st.subheader(
-        "🎯 محرك مطابقة العقارات المسجلة بالبحث التلقائي عن المشترين"
+        "➕ إضافة بناية استثمارية جديدة (سكني، تجاري، صناعي) مع توليد واتساب"
+        " فوري"
     )
-    try:
-      client = get_db_client()
-      rs_props = client.execute(
-          "SELECT id, title, location, price, created_at FROM properties"
+
+    with st.add_building_form := st.form("building_form"):
+      b_title_in = st.text_input(
+          "عنوان البناية (مثال: بناية تجارية استثمارية بالقرم)"
       )
-      properties_list = rs_props.rows
-      client.close()
-    except:
-      properties_list = []
+      col_b1, col_b2 = st.columns(2)
+      with col_b1:
+        b_type_in = st.selectbox(
+            "قطاع البناية:", ["سكنية", "تجارية", "صناعية"]
+        )
+        b_loc_in = st.text_input("الموقع / الولاية (مثال: مسقط، بوشر)")
+        b_units_in = st.number_input(
+            "عدد الشقق / المحلات / الورش:", value=12, step=1
+        )
+      with col_b2:
+        b_income_in = st.number_input(
+            "الدخل السنوي الإجمالي (ريال عماني):", value=36000.0, step=1000.0
+        )
+        b_price_in = st.number_input(
+            "السعر المطلوب للصفقة (ريال عماني):",
+            value=400000.0,
+            step=10000.0,
+        )
+        b_maps_in = st.text_input(
+            "رابط خرائط جوجل للموقع (Google Maps URL):",
+            value="https://maps.google.com",
+        )
 
-    if properties_list:
-      selected_prop_id = st.selectbox(
-          "اختر عقاراً للبحث عن مشترين له:",
-          [p[0] for p in properties_list],
-          format_func=lambda x: next(
-              f"{p[1]} ({p[2]} - {p[3]} ر.ع) [تاريخ: {p[4]}]"
-              for p in properties_list
-              if p[0] == x
-          ),
+      submit_building = st.form_submit_button(
+          "حفظ البناية وتوليد رسالة الواتساب التسويقية"
       )
 
-      if selected_prop_id:
-        client = get_db_client()
-        p_data = client.execute(
-            "SELECT title, location, price FROM properties WHERE id = ?",
-            [selected_prop_id],
-        ).rows[0]
-        matched_buyers = client.execute(
-            "SELECT name, phone, email, country, max_budget FROM buyers WHERE"
-            " preferred_location = ? AND max_budget >= ?",
-            [p_data[1], p_data[2]],
-        ).rows
-        client.close()
-
-        st.markdown(f"### النتائج للعقار: **{p_data[0]}** في ({p_data[1]})")
-        if matched_buyers:
-          st.success(
-              f"🎉 وجدنا ({len(matched_buyers)}) مشتري/مستثمر تتطابق ميزانيتهم"
-              " مع هذا العقار!"
+      if submit_building and b_title_in:
+        # حساب العائد السنوي (ROI) تلقائياً
+        calculated_roi = (
+            round((b_income_in / b_price_in) * 100, 2)
+            if b_price_in > 0
+            else 0.0
+        )
+        try:
+          client = get_db_client()
+          client.execute(
+              "INSERT INTO buildings (title, type, location, units_count,"
+              " annual_income, price, roi, google_maps, created_at) VALUES (?,"
+              " ?, ?, ?, ?, ?, ?, ?, ?)",
+              [
+                  b_title_in,
+                  b_type_in,
+                  b_loc_in,
+                  b_units_in,
+                  b_income_in,
+                  b_price_in,
+                  calculated_roi,
+                  b_maps_in,
+                  datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+              ],
           )
-          for mb in matched_buyers:
-            st.markdown(
-                f"- 👤 **{mb[0]}** (دولة: {mb[3]}) | هاتف: `{mb[1]}` | إيميل:"
-                f" `{mb[2]}` | الميزانية: `{mb[4]} ر.ع`"
-            )
-            w_msg = (
-                f"مرحباً بالمستثمر الكريم {mb[0]}، نوفر لكم فرصة عقارية مميزة"
-                f" مطابقة لطلبكم في {p_data[1]} بسعر {p_data[2]} ر.ع. للتنسيق:"
-                f" {BOT_WHATSAPP}"
-            )
-            st.markdown(
-                f"[💬 إرسال عرض واتساب للمشتري](https://wa.me/{mb[1].replace('+', '')}?text={w_msg})"
-            )
-            st.markdown("---")
-        else:
-          st.info("لا يوجد مشترين مسجلين بنفس المواصفات حالياً.")
-    else:
-      st.info("لا توجد عقارات مسجلة حالياً. قم بإضافة عقار جديد أولاً.")
+          client.close()
+          st.success(
+              f"✅ تم حفظ البناية بنجاح في سحابة Turso! العائد المحسوب (ROI):"
+              f" {calculated_roi}%"
+          )
+        except Exception as e:
+          st.error(f"خطأ أثناء الحفظ: {e}")
 
-  with tab2:
-    st.subheader(
-        "📢 صانع الإعلانات التسويقية الاحترافية (Instagram / WhatsApp / Twitter)"
-    )
+    st.markdown("---")
+    st.subheader("📲 توليد رسالة واتساب جاهزة للبنايات المسجلة للإرسال الفوري")
     try:
       client = get_db_client()
-      ads_props = client.execute(
-          "SELECT id, title, location, price, details, created_at FROM"
-          " properties"
+      b_list_res = client.execute(
+          "SELECT id, title, type, location, units_count, annual_income, price,"
+          " roi, google_maps FROM buildings ORDER BY id DESC"
       ).rows
       client.close()
     except:
-      ads_props = []
+      b_list_res = []
 
-    if ads_props:
-      ad_choice = st.selectbox(
-          "اختر عقاراً لتوليد إعلان له:",
-          [ap[0] for ap in ads_props],
+    if b_list_res:
+      selected_b_id = st.selectbox(
+          "اختر البناية لتوليد رسالة واتساب:",
+          [item[0] for item in b_list_res],
           format_func=lambda x: next(
-              f"{ap[1]} - {ap[2]} [تاريخ: {ap[5]}]"
-              for ap in ads_props
-              if ap[0] == x
+              f"{item[1]} ({item[2]} - {item[6]:,.2f} ر.ع)"
+              for item in b_list_res
+              if item[0] == x
           ),
       )
 
-      if ad_choice:
-        chosen_p = next(ap for ap in ads_props if ap[0] == ad_choice)
-        generated_ad_text = (
-            f"🌟 **فرصة استثمارية عقارية كبرى في مسقط (عروض 2026)** 🇴🇲\n\n"
-            f"📍 **الموقع:** {chosen_p[2]}\n"
-            f"🏢 **العقار:** {chosen_p[1]}\n"
-            f"💰 **السعر التنافسي:** {chosen_p[3]:,} ريال عماني\n\n"
-            f"📝 **التفاصيل:** {chosen_p[4]}\n\n"
-            f"✨ فرصة ممتازة للمستثمرين من سلطنة عمان وسائر دول مجلس التعاون"
-            f" الخليجي.\n\n"
-            f"📞 **للتواصل المباشر مع فريق الوساطة وحجز العقار عبر الرقم"
-            f" الرسمي المعتمد:**\n"
-            f"واتساب الشركة: `{BOT_WHATSAPP}`\n"
-            f"البريد الإلكتروني: `{SENDER_EMAIL}`\n\n"
-            f"#عقارات_مسقط #استثمار_عقاري #سلطنة_عمان #عقارات_الخليج"
+      if selected_b_id:
+        chosen_b = next(item for item in b_list_res if item[0] == selected_b_id)
+        # تفكيك عناصر البناية
+        bt, bty, bloc, buni, binc, bpr, broi, bmap = (
+            chosen_b[1],
+            chosen_b[2],
+            chosen_b[3],
+            chosen_b[4],
+            chosen_b[5],
+            chosen_b[6],
+            chosen_b[7],
+            chosen_b[8],
+        )
+
+        ready_wa_text = (
+            f"🔥 *فرصة استثمارية عقارية كبرى (بناية للبيع)* 🔥\n\n"
+            f"🏢 *{bt}*\n\n"
+            f"📍 الموقع: {bloc}\n"
+            f"🏷️️ القطاع: {bty}\n"
+            f"🚪 عدد الوحدات: {buni} وحدة\n"
+            f"💰 الدخل السنوي: {binc:,.2f} ر.ع\n"
+            f"💵 السعر المطلوب: {bpr:,.2f} ر.ع\n"
+            f"📈 العائد السنوي (ROI): ~{broi}%\n\n"
+            f"📍 *رابط الموقع على الخريطة مباشرة:*\n"
+            f"{bmap}\n\n"
+            f"---وارسلوها للمستثمرين والوسطاء---\n"
+            f"📞 *للتواصل وحجز الصفقة مع شركة التخطيط العالمية للاستثمار:*\n"
+            f"واتساب رسمي: `{BOT_WHATSAPP}`\n"
+            f"إيميل: `{SENDER_EMAIL}`\n\n"
+            f"#عقارات_مسقط #بنايات_للبيع #استثمار_عقاري #سلطنة_عمان"
             f" #شركة_التخطيط_العالمية"
         )
-        st.text_area("النص الإعلاني الجاهز:", generated_ad_text, height=250)
-        st.success("💡 الإعلان جاهز للنسخ والنشر المباشر.")
-    else:
-      st.info("لا توجد عقارات مسجلة لتوليد الإعلانات منها.")
 
-  with tab3:
-    st.subheader("قائمة العقارات وأرقام الملاك الحقيقية (سرية للوسيط)")
+        st.text_area(
+            "نسخ النص التسويقي الجاهز للواتساب:", ready_wa_text, height=250
+        )
+        import urllib.parse
+
+        direct_link = (
+            f"https://wa.me/?text={urllib.parse.quote(ready_wa_text)}"
+        )
+        st.markdown(
+            f"[💬 اضغط هنا لفتح واتساب ومشاركة الرسالة مباشرة]"
+            f"({direct_link})"
+        )
+    else:
+      st.info("لا توجد بنايات مسجلة لتوليد رسائل لها حتى الآن.")
+
+  # --- تبويب 2: إدارة وعرض البنايات المسجلة ---
+  with tab2:
+    st.subheader("🏠 قائمة البنايات الاستثمارية المسجلة (سرية للوسيط)")
     try:
       client = get_db_client()
-      all_p = client.execute(
-          "SELECT id, title, location, price, owner_phone, created_at FROM"
-          " properties ORDER BY id DESC"
+      all_buildings = client.execute(
+          "SELECT id, title, type, location, units_count, annual_income, price,"
+          " roi, created_at FROM buildings ORDER BY id DESC"
       ).rows
       client.close()
     except:
-      all_p = []
+      all_buildings = []
 
-    if all_p:
-      for ap in all_p:
+    if all_buildings:
+      for ab in all_buildings:
         st.markdown(
-            f"- **{ap[1]}** | الموقع: {ap[2]} | السعر: {ap[3]} ر.ع | 📞 رقم المالك:"
-            f" `{ap[4]}` | 🕒 أُضيف في: {ap[5]}"
+            f"- **{ab[1]}** | النوع: `{ab[2]}` | الموقع: `{ab[3]}` | الوحدات:"
+            f" `{ab[4]}` | الدخل: `{ab[5]:,.2f} ر.ع` | السعر: `{ab[6]:,.2f} ر.ع`"
+            f" | العائد: `~{ab[7]}%` | 🕒 الإضافة: `{ab[8]}`"
         )
     else:
-      st.info("لا توجد عقارات مضافة.")
+      st.info("لا توجد بنايات مضافة في النظام حالياً.")
 
-  with tab4:
-    st.subheader("قاعدة بيانات المستثمرين المشترين المسجلين")
+  # --- تبويب 3: قاعدة المستثمرين ---
+  with tab3:
+    st.subheader("👥 قاعدة بيانات المستثمرين والمهتمين بالبنايات والصفقات")
     try:
       client = get_db_client()
       all_b = client.execute(
-          "SELECT name, phone, email, country, preferred_location, max_budget"
-          " FROM buyers"
+          "SELECT name, phone, email, country, preferred_location, max_budget,"
+          " deal_status FROM buyers"
       ).rows
       client.close()
     except:
@@ -575,14 +649,84 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
     if all_b:
       for ab in all_b:
         st.markdown(
-            f"- **{ab[0]}** ({ab[3]}) | هاتف: `{ab[1]}` | الإيميل: `{ab[2]}` |"
-            f" المنطقة: `{ab[4]}` | الميزانية: `{ab[5]} ر.ع`"
+            f"- 👤 **{ab[0]}** ({ab[3]}) | هاتف: `{ab[1]}` | إيميل: `{ab[2]}` |"
+            f" المنطقة: `{ab[4]}` | الميزانية: `{ab[5]:,.2f} ر.ع` | الحالة:"
+            f" `{ab[6]}`"
         )
     else:
-      st.info("لا يوجد مشترين مسجلين حالياً.")
+      st.info("لا يوجد مستثمرون مسجلون حالياً.")
 
+  # --- تبويب 4: تصدير التقارير ---
+  with tab4:
+    st.subheader(
+        "📥 نظام تصدير بيانات البنايات والعملاء (Export Reports to CSV)"
+    )
+    exp_choice = st.radio(
+        "اختر الملف المطلوب تصديره:",
+        ["قائمة البنايات الاستثمارية", "قاعدة بيانات المستثمرين"],
+    )
+
+    if st.button("تجهيز وتحميل ملف CSV"):
+      import pandas as pd
+
+      try:
+        client = get_db_client()
+        if exp_choice == "قائمة البنايات الاستثمارية":
+          res_exp = client.execute(
+              "SELECT id, title, type, location, units_count, annual_income,"
+              " price, roi, google_maps, created_at FROM buildings"
+          )
+          df_exp = pd.DataFrame(
+              res_exp.rows,
+              columns=[
+                  "ID",
+                  "العنوان",
+                  "النوع",
+                  "الموقع",
+                  "الوحدات",
+                  "الدخل السنوي",
+                  "السعر",
+                  "العائد %",
+                  "خرائط جوجل",
+                  "تاريخ الإضافة",
+              ],
+          )
+          fname = "buildings_report.csv"
+        else:
+          res_exp = client.execute(
+              "SELECT id, name, phone, email, country, preferred_location,"
+              " max_budget, deal_status FROM buyers"
+          )
+          df_exp = pd.DataFrame(
+              res_exp.rows,
+              columns=[
+                  "ID",
+                  "الاسم",
+                  "الهاتف",
+                  "الإيميل",
+                  "الدولة",
+                  "الموقع",
+                  "الميزانية",
+                  "الحالة",
+              ],
+          )
+          fname = "investors_report.csv"
+        client.close()
+
+        csv_bytes = df_exp.to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            label=f"💾 اضغط هنا لتحميل ملف ({fname})",
+            data=csv_bytes,
+            file_name=fname,
+            mime="text/csv",
+        )
+        st.success("الملف جاهز للتحميل بنجاح!")
+      except Exception as ex_c:
+        st.error(f"خطأ في التصدير: {ex_c}")
+
+  # --- تبويب 5: الإيرادات والعمولات ---
   with tab5:
-    st.subheader("إيرادات المكاتب والخدمات (بنك مسقط)")
+    st.subheader("💰 إيرادات وعمولات صفقات البنايات (بنك مسقط)")
     st.markdown(
         f"**البنك:** {BANK_INFO['bank_name']} | **الآيبان:**"
         f" `{BANK_INFO['iban']}`"
@@ -597,41 +741,4 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
       client.close()
     except:
       tot = 0.0
-    st.metric("إجمالي الإيرادات", f"{tot} ر.ع")
-
-  with tab6:
-    st.subheader("إضافة عقار جديد مع رقم المالك الرسمي الصحيح")
-    with st.form("manual_prop"):
-      m_title = st.text_input("عنوان العقار")
-      m_loc = st.text_input("الموقع (مثال: مسقط، القرم)")
-      m_price = st.number_input("السعر بالريال العماني", value=50000.0)
-      m_details = st.text_area("تفاصيل العقار")
-      m_phone = st.text_input(
-          "رقم تواصل المالك أو الوسيط المعتمد (مثال: +9689XXXXXXXX)",
-          value=BOT_WHATSAPP,
-      )
-      m_sub = st.form_submit_button("نشر العقار الجديد في المنصة العامة")
-      if m_sub and m_title:
-        try:
-          client = get_db_client()
-          client.execute(
-              "INSERT INTO properties (title, location, price, details,"
-              " source_url, owner_phone, status, created_at) VALUES (?, ?, ?, ?,"
-              " ?, ?, ?, ?)",
-              [
-                  m_title,
-                  m_loc,
-                  m_price,
-                  m_details,
-                  "https://gpic.om",
-                  m_phone,
-                  "نشط",
-                  datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-              ],
-          )
-          client.close()
-          st.success(
-              "تم إضافة العقار وحفظه بنجاح في قاعدة بيانات Turso السحابية!"
-          )
-        except Exception as e:
-          st.error(f"حدث خطأ أثناء الحفظ: {e}")
+    st.metric("إجمالي التحويلات والإيرادات", f"{tot:,.2f} ر.ع")
