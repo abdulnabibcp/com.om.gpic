@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# حقن أكواد CSS متقدمة لتصميم فاخر جداً (تصميم بطاقات، ألوان متناسقة، وتوجيه RTL)
+# حقن أكواد CSS لتصميم بطاقات تتحدث عن نفسها (عصرية، نظيفة، وجذابة جداً)
 st.markdown(
     """
     <style>
@@ -23,7 +23,7 @@ st.markdown(
         direction: rtl;
         text-align: right;
         font-family: 'Tajawal', 'Cairo', sans-serif, Tahoma;
-        background-color: #f8f9fa;
+        background-color: #f4f6f8;
     }
     
     /* تنسيق القائمة الجانبية */
@@ -36,60 +36,103 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* بطاقات العقارات الفاخرة */
-    .luxury-card {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        padding: 25px;
+    /* تصميم بطاقات العقارات التي تتحدث عن نفسها */
+    .property-card-modern {
+        background: #ffffff;
         border-radius: 16px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-        margin-bottom: 25px;
-        transition: transform 0.2s ease;
+        padding: 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 24px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
     }
-    .luxury-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    .property-card-modern:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+        border-color: #0e6251;
     }
     
-    /* تنسيق العناوين والأسعار */
+    /* شريط تزييني علوي لكل بطاقة */
+    .property-card-modern::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #1b3b36, #0e6251);
+    }
+
+    .card-title {
+        color: #1b3b36;
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 10px;
+    }
+
+    .card-location {
+        color: #64748b;
+        font-size: 14px;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .card-price-badge {
+        background-color: #e6f4f1;
+        color: #0e6251;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-weight: bold;
+        font-size: 18px;
+        display: inline-block;
+        margin-bottom: 14px;
+    }
+
+    .card-details {
+        color: #334155;
+        font-size: 14px;
+        line-height: 1.6;
+        margin-bottom: 20px;
+        min-height: 48px;
+    }
+
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #f1f5f9;
+        padding-top: 14px;
+    }
+
+    .card-date {
+        color: #94a3b8;
+        font-size: 12px;
+    }
+
+    .whatsapp-btn {
+        background-color: #25d366;
+        color: white !important;
+        padding: 8px 18px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.2s;
+    }
+    .whatsapp-btn:hover {
+        background-color: #1ebe5d;
+    }
+
     h1, h2, h3 {
         color: #1b3b36;
         font-weight: 800;
-    }
-    
-    .price-tag {
-        background-color: #e6f4f1;
-        color: #0e6251;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 16px;
-        display: inline-block;
-    }
-    
-    .badge-date {
-        color: #64748b;
-        font-size: 13px;
-        background-color: #f1f5f9;
-        padding: 4px 10px;
-        border-radius: 6px;
-        display: inline-block;
-    }
-
-    /* تنسيق الأزرار */
-    .stButton>button {
-        background-color: #1b3b36;
-        color: white;
-        border-radius: 10px;
-        font-weight: bold;
-        border: none;
-        padding: 10px 20px;
-        width: 100%;
-        transition: background 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #0e6251;
-        color: white;
     }
     </style>
 """,
@@ -194,7 +237,7 @@ def fetch_smart_gcc_properties():
             "أرض استثمارية كبرى في مسقط هيلز",
             "مسقط",
             150000.0,
-            "مساحة 1200 متر مخصصة لبناء برج تجاري سكني بإطلالة متميزة.",
+            "مساحة 1200 متر مخصصة لبناء برج تجاري سكني بإطلالة متميزة وموقع حيوي.",
             "https://muscat-realestate.om/prop/201",
             BOT_WHATSAPP,
             current_time_str,
@@ -203,7 +246,7 @@ def fetch_smart_gcc_properties():
             "فلل فاخرة بإطلالة بحرية في القرم",
             "القرم",
             220000.0,
-            "تشطيبات أوروبية راقية، مناسبة للمستثمرين الخليجيين الساعين للفخامة.",
+            "تشطيبات أوروبية راقية، مناسبة للمستثمرين الخليجيين الساعين للفخامة والتميز.",
             "https://muscat-realestate.om/prop/202",
             BOT_WHATSAPP,
             current_time_str,
@@ -212,7 +255,7 @@ def fetch_smart_gcc_properties():
             "عمارة تجارية استثمارية في الخوض",
             "الخوض",
             310000.0,
-            "دخل شهري مضمون بنسبة 10%، مؤجّرة بالكامل لشركات كبرى.",
+            "دخل شهري مضمون بنسبة 10%, مؤجّرة بالكامل لشركات كبرى وعقود موثقة.",
             "https://muscat-realestate.om/prop/203",
             BOT_WHATSAPP,
             current_time_str,
@@ -251,9 +294,7 @@ def fetch_smart_gcc_properties():
 
 
 # القائمة الجانبية لإدارة الدخول
-st.sidebar.markdown(
-    "### 🔐 بوابة الإدارة"
-)  # استخدام markdown لتجنب مشاكل الألوان
+st.sidebar.markdown("### 🔐 بوابة الإدارة")
 admin_pass = st.sidebar.text_input("كلمة مرور الإدارة:", type="password")
 is_admin = admin_pass == "GPI*2025"
 
@@ -331,7 +372,7 @@ if app_mode == "🌍 عرض منصة الزوار":
   conn.close()
 
   if public_props:
-    # عرض العقارات بنظام أعمدة متناسقة (شبكة بطاقات)
+    # عرض العقارات بنظام أعمدة متناسقة (شبكة بطاقات حديثة تتحدث عن نفسها)
     for i in range(0, len(public_props), 2):
       cols = st.columns(2)
       for j in range(2):
@@ -346,16 +387,16 @@ if app_mode == "🌍 عرض منصة الزوار":
 
             st.markdown(
                 f"""
-                    <div class="luxury-card">
-                        <h3 style="margin-top: 0; color: #1b3b36; font-size: 20px;">🏢 {pp[0]}</h3>
-                        <p style="color: #475569; margin: 8px 0;"><b>📍 الموقع:</b> {pp[1]}</p>
-                        <div style="margin: 12px 0;">
-                            <span class="price-tag">💰 {pp[2]:,} ر.ع</span>
+                    <div class="property-card-modern">
+                        <div class="card-title">🏢 {pp[0]}</div>
+                        <div class="card-location">📍 موقع العقار: <b>{pp[1]}</b></div>
+                        <div>
+                            <span class="card-price-badge">💰 {pp[2]:,} ر.ع</span>
                         </div>
-                        <p style="color: #334155; line-height: 1.5; font-size: 14px; min-height: 45px;">{pp[3]}</p>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
-                            <span class="badge-date">🕒 {pp[5].split(' ')[0]}</span>
-                            <a href="{whatsapp_link}" target="_blank" style="background-color: #25d366; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 13px;">💬 تواصل واتساب</a>
+                        <div class="card-details">{pp[3]}</div>
+                        <div class="card-footer">
+                            <span class="card-date">🕒 أُضيف في: {pp[5].split(' ')[0]}</span>
+                            <a href="{whatsapp_link}" target="_blank" class="whatsapp-btn">💬 تواصل واتساب</a>
                         </div>
                     </div>
                 """,
