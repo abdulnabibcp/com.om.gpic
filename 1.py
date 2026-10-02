@@ -12,7 +12,7 @@ from config import BANK_INFO, BOT_WHATSAPP, SENDER_EMAIL, SENDER_PASSWORD
 # إعداد الصفحة وتصميم الواجهة
 st.set_page_config(
     page_title=(
-        "منصة التخطيط العالمية العقارية - دول الخليج | شركة التخطيط العالمية"
+        "منصة التخطيط العالمية العقارية - الخليج الذكية | شركة التخطيط العالمية"
     ),
     page_icon="🏢",
     layout="wide",
@@ -21,11 +21,12 @@ st.set_page_config(
 DB_NAME = "real_estate_agent.db"
 
 
-# تهيئة قاعدة البيانات مع دعم أرقام تواصل الملاك والترويج الخليجي
+# تهيئة قاعدة البيانات وضمان وجود جميع الأعمدة لتجنب أخطاء الجداول القديمة
 def init_db():
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
 
+  # إنشاء جدول العقارات الأساسي
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS properties (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,6 +41,13 @@ def init_db():
         )
     """)
 
+  # التحقق من وجود عمود owner_phone وإضافته إذا كان مفقوداً في قواعد بيانات قديمة
+  cursor.execute("PRAGMA table_info(properties)")
+  columns = [col[1] for col in cursor.fetchall()]
+  if "owner_phone" not in columns:
+    cursor.execute("ALTER TABLE properties ADD COLUMN owner_phone TEXT")
+
+  # إنشاء جدول المشترين
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS buyers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,6 +60,7 @@ def init_db():
         )
     """)
 
+  # إنشاء جدول الاشتراكات والإيرادات
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS subscriptions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +74,7 @@ def init_db():
         )
     """)
 
+  # إنشاء جدول السجلات الحية
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS activity_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -176,7 +186,6 @@ def fetch_smart_gcc_properties():
           f" المالك: {selected[5]}",
       )
 
-      # مطابقة مع المشترين الخليجيين والمحليين
       cursor.execute(
           "SELECT name, phone, email, country FROM buyers"
           " WHERE preferred_location = ? AND max_budget >= ?",
