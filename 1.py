@@ -306,13 +306,11 @@ def fetch_smart_gcc_properties():
     pass
 
 
-# القائمة الجانبية لإدارة الدخول (تم تعديل حقل الباسورد ليقبل الكتابة واللصق بسلاسة)
+# القائمة الجانبية لإدارة الدخول (بواسطة حقل كلمة مرور آمن ومخفي مع تثبيت الـ Key)
 st.sidebar.markdown("### 🔐 بوابة الإدارة")
-st.sidebar.markdown(
-    "<p style='font-size: 12px; color: #a5d6a7;'>كلمة المرور هي: GPI*2025</p>",
-    unsafe_allow_html=True,
+admin_pass = st.sidebar.text_input(
+    "كلمة مرور الإدارة:", type="password", key="admin_password_input"
 )
-admin_pass = st.sidebar.text_input("أدخل كلمة مرور الإدارة:", value="")
 is_admin = admin_pass.strip() == "GPI*2025"
 
 if is_admin:
