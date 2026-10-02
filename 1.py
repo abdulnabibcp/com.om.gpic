@@ -7,7 +7,7 @@ from config import BANK_INFO, BOT_WHATSAPP, SENDER_EMAIL, SENDER_PASSWORD
 
 # بيانات الاتصال بقاعدة بيانات Turso السحابية
 TURSO_DATABASE_URL = "ضع_رابط_Turso_هنا"  # ضع رابط الـ URL الخاص بك هنا
-TURSO_AUTH_TOKEN = "ضع_رمز_التحقق_Token_هنا"  # ضع الـ Token الخاص بك هنا
+TURSO_AUTH_TOKEN = "ضع_رمز_التحقق_Token_Here"  # ضع الـ Token الخاص بك هنا
 
 # كلمة المرور السرية الخاصة بلوحة تحكم المشرف
 ADMIN_PASSWORD = "123"  # يمكنك تغييرها هنا إلى أي كلمة مرور تريدها
@@ -21,7 +21,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# حقن أكواد CSS لتصميم البطاقات العصرية
+# حقن أكواد CSS لتصميم البطاقات العصرية، مع تثبيت حقل الباسورد باتجاه يساري (LTR) لحل المشكلة جذرياً
 st.markdown(
     """
     <style>
@@ -38,6 +38,11 @@ st.markdown(
     }
     section[data-testid="stSidebar"] * {
         color: #ffffff !important;
+    }
+    /* حل جذري: إجبار خانة الباسورد على الاتجاه اليساري الإنجليزي لمنع تداخل الحروف واختفائها */
+    input[type="password"] {
+        direction: ltr !important;
+        text-align: left !important;
     }
     .property-card-modern {
         background: #ffffff;
@@ -214,7 +219,7 @@ def add_log(log_type, message):
 
 
 # ==========================================
-# القائمة الجانبية ونظام تسجيل الدخول الآمن
+# القائمة الجانبية ونظام تسجيل الدخول الآمن بـ Popover Button
 # ==========================================
 st.sidebar.markdown("### 🔐 بوابة الإدارة")
 
@@ -222,23 +227,25 @@ if "authenticated" not in st.session_state:
   st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-  with st.sidebar.form("admin_login_form"):
-    password_input = st.text_input(
-        "أدخل كلمة مرور المشرف:", type="password", key="pwd_box"
-    )
-    submit_login = st.form_submit_button("دخول لوحة التحكم")
+  # استخدام زر تفاعلي (Popover) يفتح نافذة منفصلة لكي تكون حرة تماماً من مشاكل اتجاه الكتابة
+  with st.sidebar.popover("🔑 تسجيل دخول المشرف"):
+    st.markdown("أدخل كلمة المرور الخاصة بالإدارة:")
+    with st.form("admin_login_form"):
+      password_input = st.text_input(
+          "الباسورد:", type="password", key="pwd_box", label_visibility="collapsed"
+      )
+      submit_login = st.form_submit_button("تحقق ودخول")
 
-    if submit_login:
-      if password_input == ADMIN_PASSWORD:
-        st.session_state.authenticated = True
-        st.rerun()
-      else:
-        st.sidebar.error("❌ كلمة المرور غير صحيحة")
+      if submit_login:
+        if password_input == ADMIN_PASSWORD:
+          st.session_state.authenticated = True
+          st.rerun()
+        else:
+          st.error("❌ كلمة المرور غير صحيحة")
 
   app_mode = "🌍 عرض منصة الزوار"
   st.sidebar.info(
-      "💡 الموقع معروض حصرياً للعملاء. لوحة التحكم مخفية وتحتاج لكلمة مرور"
-      " للإدارة."
+      "💡 الموقع معروض للعملاء. لوحة التحكم محمية ولا تفتح إلا للمسؤول."
   )
 else:
   st.sidebar.success("🟢 تم تسجيل الدخول بنجاح")
