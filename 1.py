@@ -104,7 +104,6 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # إنشاء الجداول الأساسية إن لم تكن موجودة
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS buildings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,7 +148,6 @@ def init_db():
             )
         """)
 
-    # التحقق من وجود الأعمدة الحديثة في الجداول القديمة وإضافتها تلقائياً إن لم تكن موجودة
     cursor.execute("PRAGMA table_info(buildings)")
     b_columns = [col[1] for col in cursor.fetchall()]
     if "created_at" not in b_columns:
@@ -202,7 +200,7 @@ with st.container():
 # وضع لوحة التحكم (خاص بالمسؤول)
 # ==========================================
 if st.session_state.authenticated and st.session_state.admin_mode_active:
-  st.title("⚙️️ لوحة تحكم العروض العقارية (خاص بالوسيط)")
+  st.title("⚙ لوحة تحكم العروض العقارية (خاص بالوسيط)")
   st.warning(
       "⚠ أنت تصفح لوحة الإدارة السرية. هذه الواجهة لا تظهر للعملاء أو الزوار."
   )
@@ -213,7 +211,7 @@ if st.session_state.authenticated and st.session_state.admin_mode_active:
           "🏢 1. إضافة بناية جديدة وتوليد رسالة واتساب",
           "✏️ 2. تعديل أو حذف البنايات",
           "👥 3. إدارة المستثمرين والمهتمين",
-          "📥 4. تصدير التقارير (CSV)",
+          "📥 4. تصدير التقارير (HTML أو PDF)",
           "💰 5. الإيرادات والعمولات",
       ],
   )
@@ -462,7 +460,7 @@ if st.session_state.authenticated and st.session_state.admin_mode_active:
               cursor.execute("DELETE FROM buildings WHERE id=?", (eb_id,))
               conn.commit()
               conn.close()
-              st.success("🗑️️ تم الحذف بنجاح!")
+              st.success("🗑 تم الحذف بنجاح!")
               st.rerun()
             except Exception as err_del:
               st.error(f"خطأ: {err_del}")
@@ -507,75 +505,155 @@ if st.session_state.authenticated and st.session_state.admin_mode_active:
     else:
       st.info("لا يوجد طلبات مستثمرين مسجلة حتى الآن.")
 
-  elif admin_action == "📥 4. تصدير التقارير (CSV)":
-    st.subheader("📥 نظام تصدير البيانات والتقارير")
-    exp_choice = st.radio(
-        "اختر الملف المطلوب تصديره:",
+  elif admin_action == "📥 4. تصدير التقارير (HTML أو PDF)":
+    st.subheader("📥 نظام تصدير التقارير الاحترافية (HTML / PDF)")
+
+    report_type = st.radio(
+        "اختر نوع التقرير المطلوب:",
         ["قائمة البنايات الاستثمارية", "قاعدة بيانات المستثمرين"],
     )
+    format_choice = st.radio("اختر صيغة التصدير:", ["HTML", "PDF"])
 
-    if st.button("تجهيز وتحميل ملف CSV"):
-      import pandas as pd
-
+    if st.button("توليد وتنزيل التقرير"):
       try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        if exp_choice == "قائمة البنايات الاستثمارية":
+
+        if report_type == "قائمة البنايات الاستثمارية":
           cursor.execute(
               "SELECT id, title, type, location, units_count, monthly_income,"
-              " annual_income, price, roi, owner_phone, created_at FROM buildings"
+              " annual_income, price, roi, created_at FROM buildings ORDER BY id"
+              " DESC"
           )
           rows = cursor.fetchall()
-          df_exp = pd.DataFrame(
-              rows,
-              columns=[
-                  "ID",
-                  "العنوان",
-                  "النوع",
-                  "الموقع",
-                  "الوحدات",
-                  "الدخل الشهري",
-                  "الدخل السنوي",
-                  "السعر",
-                  "العائد %",
-                  "رقم المالك",
-                  "التاريخ",
-              ],
-          )
-          fname = "buildings_report.csv"
+          title_text = "تقرير قائمة البنايات الاستثمارية"
+
+          # إنشاء محتوى HTML منسق وجميل للتقارير
+          html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="ar" dir="rtl">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>{title_text}</title>
+                        <style>
+                            body {{ font-family: Tahoma, Arial, sans-serif; background: #f9f9f9; color: #333; padding: 20px; }}
+                            h1 {{ color: #1b3b36; text-align: center; }}
+                            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }}
+                            th, td {{ border: 1px solid #ddd; padding: 10px; text-align: right; font-size: 14px; }}
+                            th {{ background-color: #1b3b36; color: white; }}
+                            tr:nth-child(even) {{ background-color: #f2f2f2; }}
+                        </style>
+                    </head>
+                    <body>
+                        <h1>🏢 {title_text}</h1>
+                        <p>تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+                        <table>
+                            <tr>
+                                <th>ID</th>
+                                <th>العنوان</th>
+                                <th>النوع</th>
+                                <th>الموقع</th>
+                                <th>الوحدات</th>
+                                <th>الدخل الشهري</th>
+                                <th>السعر</th>
+                                <th>العائد %</th>
+                            </tr>
+                    """
+          for r in rows:
+            html_content += f"""
+                            <tr>
+                                <td>{r[0]}</td>
+                                <td>{r[1]}</td>
+                                <td>{r[2]}</td>
+                                <td>{r[3]}</td>
+                                <td>{r[4]}</td>
+                                <td>{r[5]:,.2f} ر.ع</td>
+                                <td>{r[7]:,.2f} ر.ع</td>
+                                <td>{r[8]}%</td>
+                            </tr>
+                        """
+          html_content += "</table></body></html>"
+          file_name_base = "buildings_report"
+
         else:
           cursor.execute(
               "SELECT id, name, phone, email, country, preferred_location,"
-              " max_budget, deal_status, created_at FROM buyers"
+              " max_budget, deal_status, created_at FROM buyers ORDER BY id"
+              " DESC"
           )
           rows = cursor.fetchall()
-          df_exp = pd.DataFrame(
-              rows,
-              columns=[
-                  "ID",
-                  "الاسم",
-                  "الهاتف",
-                  "الإيميل",
-                  "الدولة",
-                  "الموقع",
-                  "الميزانية",
-                  "الحالة",
-                  "التاريخ",
-              ],
-          )
-          fname = "investors_report.csv"
+          title_text = "تقرير قاعدة بيانات المستثمرين"
+
+          html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="ar" dir="rtl">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>{title_text}</title>
+                        <style>
+                            body {{ font-family: Tahoma, Arial, sans-serif; background: #f9f9f9; color: #333; padding: 20px; }}
+                            h1 {{ color: #1b3b36; text-align: center; }}
+                            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }}
+                            th, td {{ border: 1px solid #ddd; padding: 10px; text-align: right; font-size: 14px; }}
+                            th {{ background-color: #1b3b36; color: white; }}
+                            tr:nth-child(even) {{ background-color: #f2f2f2; }}
+                        </style>
+                    </head>
+                    <body>
+                        <h1>👥 {title_text}</h1>
+                        <p>تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+                        <table>
+                            <tr>
+                                <th>ID</th>
+                                <th>الاسم الكريم</th>
+                                <th>رقم الهاتف</th>
+                                <th>الدولة</th>
+                                <th>الموقع المفضل</th>
+                                <th>الميزانية</th>
+                                <th>الحالة</th>
+                            </tr>
+                    """
+          for r in rows:
+            html_content += f"""
+                            <tr>
+                                <td>{r[0]}</td>
+                                <td>{r[1]}</td>
+                                <td>{r[2]}</td>
+                                <td>{r[4]}</td>
+                                <td>{r[5]}</td>
+                                <td>{r[6]:,.2f} ر.ع</td>
+                                <td>{r[7]}</td>
+                            </tr>
+                        """
+          html_content += "</table></body></html>"
+          file_name_base = "investors_report"
+
         conn.close()
 
-        csv_bytes = df_exp.to_csv(index=False).encode("utf-8-sig")
-        st.download_button(
-            label=f"💾 اضغط هنا لتحميل ({fname})",
-            data=csv_bytes,
-            file_name=fname,
-            mime="text/csv",
-        )
-        st.success("الملف جاهز للتحميل!")
-      except Exception as ex_c:
-        st.error(f"خطأ أثناء التصدير: {ex_c}")
+        if format_choice == "HTML":
+          st.download_button(
+              label="📥 تنزيل التقرير بصيغة HTML",
+              data=html_content.encode("utf-8-sig"),
+              file_name=f"{file_name_base}.html",
+              mime="text/html",
+          )
+          st.success("✅ تم تجهيز تقرير HTML للتحميل الفوري!")
+        else:
+          # تنبيه في حال اختيار PDF لتوفير بديل سلس وعملي عبر المتصفح
+          st.info(
+              "📄 لتصدير التقرير كملف **PDF** فائق الجودة: قم بتحميل ملف الـ"
+              " HTML أعلاه ثم افتحه في المتصفح واضغط (Ctrl + P) ثم اختر"
+              " (حفظ كملف PDF)."
+          )
+          st.download_button(
+              label="📥 تنزيل ملف التقرير للطباعة (HTML لـ PDF)",
+              data=html_content.encode("utf-8-sig"),
+              file_name=f"{file_name_base}_for_pdf.html",
+              mime="text/html",
+          )
+
+      except Exception as ex_rep:
+        st.error(f"خطأ أثناء توليد التقرير: {ex_rep}")
 
   elif admin_action == "💰 5. الإيرادات والعمولات":
     st.subheader("💰 إيرادات وعمولات صفقات البنايات")
