@@ -163,7 +163,7 @@ if "admin_mode_active" not in st.session_state:
   st.session_state.admin_mode_active = False
 
 # ==========================================
-# منطقة الإدارة المخفية (تفتح فقط عند النغمة أو الزر الهادئ أعلى الصفحة)
+# منطقة الإدارة المخفية أعلى الصفحة
 # ==========================================
 with st.container():
   col_top1, col_top2 = st.columns([8, 2])
@@ -186,7 +186,7 @@ with st.container():
 
 
 # ==========================================
-# وضع لوحة التحكم (لا يظهر أبداً إلا للمسؤول المُسجل)
+# وضع لوحة التحكم (خاص بالمسؤول)
 # ==========================================
 if st.session_state.authenticated and st.session_state.admin_mode_active:
   st.title("⚙️ لوحة تحكم العروض العقارية (خاص بالوسيط)")
@@ -562,7 +562,7 @@ if st.session_state.authenticated and st.session_state.admin_mode_active:
         )
         st.success("الملف جاهز للتحميل!")
       except Exception as ex_c:
-        st.error(f"خطأ: {ex_c}")
+        st.error(f"خطأ أثناء التصدير: {ex_c}")
 
   elif admin_action == "💰 5. الإيرادات والعمولات":
     st.subheader("💰 إيرادات وعمولات صفقات البنايات")
@@ -585,7 +585,7 @@ if st.session_state.authenticated and st.session_state.admin_mode_active:
     st.metric("إجمالي التحويلات والإيرادات", f"{tot:,.2f} ر.ع")
 
   st.markdown("---")
-  st.stop()  # إيقاف التنفيذ هنا لكي لا يظهر شيء من لوحة التحكم للزوار نهائياً
+  st.stop()
 
 
 # ==========================================
@@ -684,12 +684,16 @@ if public_buildings:
 else:
   st.info("لا توجد بنايات استثمارية معروضة حالياً. يرجى العودة لاحقاً.")
 
-# نموذج إرسال طلب المستثمر (للعملاء مباشرة)
+# نموذج إرسال طلب المستثمر (متمركز في المنتصف)
 st.markdown("---")
-st.subheader("📋 نموذج إبداء رغبة استثمارية وطلب عقار")
-st.write(
-    "هل تبحث عن مواصفات محددة؟ اترك بياناتك وسيقوم فريق الوساطة بالتواصل معك"
-    " فوراً بالفرص المناسبة:"
+st.markdown(
+    """
+    <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+        <h2 style="color: #1b3b36; font-weight: 800; margin-bottom: 10px;">📋 نموذج إبداء رغبة استثمارية وطلب عقار</h2>
+        <p style="color: #64748b; font-size: 16px;">هل تبحث عن مواصفات محددة؟ اترك بياناتك وسيقوم فريق الوساطة بالتواصل معك فوراً بالفرص المناسبة:</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 with st.form("client_inquiry_form"):
