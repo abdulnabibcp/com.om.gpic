@@ -104,6 +104,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # إنشاء الجداول الأساسية إن لم تكن موجودة
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS buildings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -147,10 +148,22 @@ def init_db():
                 created_at TEXT
             )
         """)
+
+    # التحقق من وجود الأعمدة الحديثة في الجداول القديمة وإضافتها تلقائياً إن لم تكن موجودة
+    cursor.execute("PRAGMA table_info(buildings)")
+    b_columns = [col[1] for col in cursor.fetchall()]
+    if "created_at" not in b_columns:
+      cursor.execute("ALTER TABLE buildings ADD COLUMN created_at TEXT")
+
+    cursor.execute("PRAGMA table_info(buyers)")
+    buyers_columns = [col[1] for col in cursor.fetchall()]
+    if "created_at" not in buyers_columns:
+      cursor.execute("ALTER TABLE buyers ADD COLUMN created_at TEXT")
+
     conn.commit()
     conn.close()
-  except Exception:
-    pass
+  except Exception as e:
+    print(f"Database Init Error: {e}")
 
 
 init_db()
@@ -189,7 +202,7 @@ with st.container():
 # وضع لوحة التحكم (خاص بالمسؤول)
 # ==========================================
 if st.session_state.authenticated and st.session_state.admin_mode_active:
-  st.title("⚙️ لوحة تحكم العروض العقارية (خاص بالوسيط)")
+  st.title("⚙️️ لوحة تحكم العروض العقارية (خاص بالوسيط)")
   st.warning(
       "⚠ أنت تصفح لوحة الإدارة السرية. هذه الواجهة لا تظهر للعملاء أو الزوار."
   )
@@ -449,7 +462,7 @@ if st.session_state.authenticated and st.session_state.admin_mode_active:
               cursor.execute("DELETE FROM buildings WHERE id=?", (eb_id,))
               conn.commit()
               conn.close()
-              st.success("🗑️ تم الحذف بنجاح!")
+              st.success("🗑️️ تم الحذف بنجاح!")
               st.rerun()
             except Exception as err_del:
               st.error(f"خطأ: {err_del}")
