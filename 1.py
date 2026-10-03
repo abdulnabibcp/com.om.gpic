@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import sqlite3
+import urllib.parse
 import streamlit as st
 
 # استيراد البيانات الحساسة والإعدادات من الملف المنفصل
@@ -13,12 +14,12 @@ ADMIN_PASSWORD = "GPI*2025"
 
 # إعداد الصفحة وتصميم الواجهة الفاخرة
 st.set_page_config(
-    page_title="منصة العروض العقارية",
+    page_title="منصة العروض العقارية الاستثمارية",
     page_icon="🏢",
     layout="wide",
 )
 
-# حقن أكواد CSS لتنسيق الواجهة وإخفاء أي عناصر غير مرغوب فيها
+# حقن أكواد CSS لتنسيق الواجهة باحترافية تامة
 st.markdown(
     """
     <style>
@@ -28,18 +29,6 @@ st.markdown(
         font-family: 'Tajawal', 'Cairo', sans-serif, Tahoma;
         background-color: #f4f6f8;
     }
-    section[data-testid="stSidebar"] {
-        direction: rtl;
-        text-align: right;
-        background-color: #1b3b36;
-    }
-    section[data-testid="stSidebar"] * {
-        color: #ffffff !important;
-    }
-    input[type="password"] {
-        direction: ltr !important;
-        text-align: left !important;
-    }
     .property-card-modern {
         background: #ffffff;
         border-radius: 16px;
@@ -47,14 +36,8 @@ st.markdown(
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
         border: 1px solid #e2e8f0;
         margin-bottom: 24px;
-        transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
-    }
-    .property-card-modern:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
-        border-color: #0e6251;
     }
     .property-card-modern::before {
         content: "";
@@ -75,9 +58,6 @@ st.markdown(
         color: #64748b;
         font-size: 14px;
         margin-bottom: 14px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
     }
     .card-price-badge {
         background-color: #e6f4f1;
@@ -94,18 +74,6 @@ st.markdown(
         font-size: 14px;
         line-height: 1.6;
         margin-bottom: 20px;
-        min-height: 48px;
-    }
-    .card-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-top: 1px solid #f1f5f9;
-        padding-top: 14px;
-    }
-    .card-date {
-        color: #94a3b8;
-        font-size: 12px;
     }
     .whatsapp-btn {
         background-color: #25d366;
@@ -115,13 +83,7 @@ st.markdown(
         text-decoration: none;
         font-weight: bold;
         font-size: 13px;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        transition: background 0.2s;
-    }
-    .whatsapp-btn:hover {
-        background-color: #1ebe5d;
+        display: inline-block;
     }
     h1, h2, h3 {
         color: #1b3b36;
@@ -159,16 +121,6 @@ def init_db():
             )
         """)
 
-    cursor.execute("PRAGMA table_info(buildings)")
-    existing_columns = [col[1] for col in cursor.fetchall()]
-
-    if "monthly_income" not in existing_columns:
-      cursor.execute("ALTER TABLE buildings ADD COLUMN monthly_income REAL")
-    if "owner_phone" not in existing_columns:
-      cursor.execute("ALTER TABLE buildings ADD COLUMN owner_phone TEXT")
-    if "google_maps" not in existing_columns:
-      cursor.execute("ALTER TABLE buildings ADD COLUMN google_maps TEXT")
-
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS buyers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -178,7 +130,8 @@ def init_db():
                 country TEXT,
                 preferred_location TEXT,
                 max_budget REAL,
-                deal_status TEXT DEFAULT 'مهتم جديد'
+                deal_status TEXT DEFAULT 'مهتم جديد',
+                created_at TEXT
             )
         """)
 
@@ -194,241 +147,68 @@ def init_db():
                 created_at TEXT
             )
         """)
-
-    cursor.execute("""
-            CREATE TABLE IF NOT EXISTS activity_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT,
-                log_type TEXT,
-                message TEXT
-            )
-        """)
     conn.commit()
     conn.close()
-  except Exception as e:
+  except Exception:
     pass
 
 
 init_db()
 
-
-# ==========================================
-# القائمة الجانبية ونظام الدخول (متوافق تماماً مع الهواتف والكمبيوتر)
-# ==========================================
-st.sidebar.markdown("### 🔐 بوابة الإدارة والتحكم")
-
+# تهيئة حالة الجلسة للتنقل المخفي للمشرف
 if "authenticated" not in st.session_state:
   st.session_state.authenticated = False
 
-if not st.session_state.authenticated:
-  with st.sidebar.form("admin_login_form"):
-    password_input = st.text_input("كلمة مرور المشرف:", type="password")
-    submit_login = st.form_submit_button("تسجيل الدخول للوحة التحكم")
-
-    if submit_login:
-      if password_input == ADMIN_PASSWORD:
-        st.session_state.authenticated = True
-        st.rerun()
-      else:
-        st.sidebar.error("❌ كلمة المرور غير صحيحة")
-
-  app_mode = "🌍 عرض منصة الزوار"
-else:
-  st.sidebar.success("🟢 مرحباً، أنت مسجل كمسؤول")
-  if st.sidebar.button("🚪 تسجیل خروج"):
-    st.session_state.authenticated = False
-    st.rerun()
-
-  app_mode = st.sidebar.radio(
-      "اختر وضع العرض:",
-      ["🌍 عرض منصة الزوار", "⚙️ لوحة تحكم الوسيط الذكي"],
-  )
-
+if "admin_mode_active" not in st.session_state:
+  st.session_state.admin_mode_active = False
 
 # ==========================================
-# 1. منصة الزوار (عرض البنايات الاستثمارية)
+# منطقة الإدارة المخفية (تفتح فقط عند النغمة أو الزر الهادئ أعلى الصفحة)
 # ==========================================
-if app_mode == "🌍 عرض منصة الزوار":
-  st.markdown(
-      "<h1 style='text-align: center; color: #1b3b36; margin-bottom:"
-      " 0;'>منصة العروض العقارية الاستثمارية</h1>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<h3 style='text-align: center; color: #0e6251; font-weight: 400;"
-      " margin-bottom: 30px;'>محفظة البنايات والعقارات الاستثمارية المتميزة</h3>",
-      unsafe_allow_html=True,
-  )
-
-  b_filter_type = st.selectbox(
-      "🏢 تصفية صفقات البنايات حسب القطاع:",
-      ["الكل", "سكنية", "تجارية", "صناعية"],
-  )
-
-  st.markdown("---")
-  st.subheader("📋 محفظة البنايات الاستثمارية المتاحة للبيع")
-
-  public_buildings = []
-  try:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    if b_filter_type == "الكل":
-      cursor.execute(
-          "SELECT id, title, type, location, units_count, monthly_income,"
-          " annual_income, price, roi, created_at FROM buildings ORDER BY id"
-          " DESC"
-      )
+with st.container():
+  col_top1, col_top2 = st.columns([8, 2])
+  with col_top2:
+    if not st.session_state.authenticated:
+      with st.popover("🔐 بوابة الإدارة"):
+        pass_input = st.text_input("كلمة مرور المشرف:", type="password")
+        if st.button("دخول لوحة التحكم"):
+          if pass_input == ADMIN_PASSWORD:
+            st.session_state.authenticated = True
+            st.session_state.admin_mode_active = True
+            st.rerun()
+          else:
+            st.error("كلمة المرور غير صحيحة")
     else:
-      cursor.execute(
-          "SELECT id, title, type, location, units_count, monthly_income,"
-          " annual_income, price, roi, created_at FROM buildings WHERE type = ?"
-          " ORDER BY id DESC",
-          (b_filter_type,),
-      )
-    public_buildings = cursor.fetchall()
-    conn.close()
-  except:
-    pass
+      if st.button("🚪 خروج من الإدارة"):
+        st.session_state.authenticated = False
+        st.session_state.admin_mode_active = False
+        st.rerun()
 
-  if public_buildings:
-    for i in range(0, len(public_buildings), 2):
-      cols = st.columns(2)
-      for j in range(2):
-        if i + j < len(public_buildings):
-          b_item = public_buildings[i + j]
-          (
-              b_id,
-              b_title,
-              b_type,
-              b_loc,
-              b_units,
-              b_mincome,
-              b_aincome,
-              b_price,
-              b_roi,
-              b_date,
-          ) = b_item
-          with cols[j]:
-            whatsapp_msg = (
-                f"مرحباً، أهتم بالاستفسار عن البناية ({b_title}) - نوع"
-                f" ({b_type}) في ({b_loc}) بسعر ({b_price:,.2f} ر.ع) وعائد"
-                f" ({b_roi}%). أرجو التنسيق للتفاصيل."
-            )
-            import urllib.parse
 
-            wa_link = f"https://wa.me/{COMPANY_WHATSAPP.replace('+', '').replace(' ', '')}?text={urllib.parse.quote(whatsapp_msg)}"
+# ==========================================
+# وضع لوحة التحكم (لا يظهر أبداً إلا للمسؤول المُسجل)
+# ==========================================
+if st.session_state.authenticated and st.session_state.admin_mode_active:
+  st.title("⚙️ لوحة تحكم العروض العقارية (خاص بالوسيط)")
+  st.warning(
+      "⚠ أنت تصفح لوحة الإدارة السرية. هذه الواجهة لا تظهر للعملاء أو الزوار."
+  )
 
-            st.markdown(
-                f"""
-                    <div class="property-card-modern">
-                        <div class="card-title">🏢 {b_title}</div>
-                        <div class="card-location">📍 الموقع: <b>{b_loc}</b> | النوع: <b>{b_type}</b></div>
-                        <div>
-                            <span class="card-price-badge">💰 {b_price:,.2f} ر.ع</span>
-                        </div>
-                        <div class="card-details">
-                            🚪 عدد الوحدات: <b>{b_units}</b><br>
-                            💵 الدخل الشهري: <b>{b_mincome if b_mincome else 0:,.2f} ر.ع</b> | السنوي: <b>{b_aincome if b_aincome else 0:,.2f} ر.ع</b><br>
-                            📈 العائد السنوي (ROI): <b>~{b_roi if b_roi else 0}%</b>
-                        </div>
-                        <div class="card-footer">
-                            <span class="card-date">🕒 أُضيف في: {b_date.split(' ')[0] if b_date else ''}</span>
-                            <a href="{wa_link}" target="_blank" class="whatsapp-btn">💬 تواصل واتساب</a>
-                        </div>
-                    </div>
-                """,
-                unsafe_allow_html=True,
-            )
-  else:
-    st.info(
-        "لا توجد بنايات استثمارية معروضة حالياً. (قم بإضافتها من لوحة تحكم"
-        " المشرف)."
-    )
+  admin_action = st.selectbox(
+      "اختر قسم الإدارة والتحكم:",
+      [
+          "🏢 1. إضافة بناية جديدة وتوليد رسالة واتساب",
+          "✏️ 2. تعديل أو حذف البنايات",
+          "👥 3. إدارة المستثمرين والمهتمين",
+          "📥 4. تصدير التقارير (CSV)",
+          "💰 5. الإيرادات والعمولات",
+      ],
+  )
 
   st.markdown("---")
-  st.markdown(
-      "<h2 style='text-align: center; color: #1b3b36; margin-top: 30px;'>📝"
-      " سجل رغبتك الاستثمارية في البنايات</h2>",
-      unsafe_allow_html=True,
-  )
 
-  with st.form("public_buyer_form"):
-    c1, c2 = st.columns(2)
-    with c1:
-      bp_name = st.text_input("الاسم الكريم / اسم الشركة الاستثمارية")
-      bp_phone = st.text_input("رقم الهاتف مع رمز الدولة (مثال: +9689XXXXXXXX)")
-      bp_email = st.text_input("البريد الإلكتروني")
-    with c2:
-      bp_country = st.selectbox(
-          "الدولة القادم منها",
-          [
-              "سلطنة عمان",
-              "المملكة العربية السعودية",
-              "الإمارات العربية المتحدة",
-              "الكويت",
-              "قطر",
-              "البحرين",
-          ],
-      )
-      bp_loc = st.selectbox(
-          "المنطقة المطلوبة في مسقط",
-          ["مسقط", "القرم", "الخوض", "بوشر", "العامرات", "الموالح", "البريمي"],
-      )
-      bp_budget = st.number_input(
-          "الحد الأقصى للميزانية المرصودة للبنايات (ريال عماني)",
-          value=500000.0,
-          step=50000.0,
-      )
-
-    submit_bp = st.form_submit_button("إرسال الطلب للفريق المختص")
-
-    if submit_bp and bp_name:
-      try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO buyers (name, phone, email, country,"
-            " preferred_location, max_budget, deal_status) VALUES (?, ?, ?, ?,"
-            " ?, ?, ?)",
-            (
-                bp_name,
-                bp_phone,
-                bp_email,
-                bp_country,
-                bp_loc,
-                bp_budget,
-                "مهتم بـ بنايات",
-            ),
-        )
-        conn.commit()
-        conn.close()
-        st.success("تم استلام طلبكم بنجاح وسيتواصل معكم فريق العمل قريباً.")
-      except Exception as ex:
-        st.error(f"حدث خطأ أثناء حفظ الطلب: {ex}")
-
-
-# ==========================================
-# 2. لوحة التحكم للمشرف (Admin Dashboard)
-# ==========================================
-elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
-  st.title("⚙️ لوحة تحكم العروض العقارية")
-  st.warning(
-      "⚠ لوحة تحكم سرية خاصة بإدارة البنايات، تخزين أرقام أصحاب العقار، وتوليد"
-      " الرسائل."
-  )
-
-  tab1, tab2, tab3, tab4, tab5 = st.tabs([
-      "🏢 1. إضافة وتوليد واتساب للبنايات",
-      "✏️ 2. تعديل وحذف البنايات",
-      "👥 3. إدارة وحذف المستثمرين",
-      "📥 4. تصدير التقارير (CSV)",
-      "💰 5. الإيرادات والعمولات",
-  ])
-
-  with tab1:
-    st.subheader(
-        "➕ إضافة بناية استثمارية جديدة (تخزين رقم المالك سرياً في النظام)"
-    )
+  if admin_action == "🏢 1. إضافة بناية جديدة وتوليد رسالة واتساب":
+    st.subheader("➕ إضافة بناية استثمارية جديدة")
 
     with st.form("building_form"):
       b_title_in = st.text_input(
@@ -444,8 +224,7 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
             "عدد الشقق / المحلات / الورش:", value=12, step=1
         )
         b_ophone_in = st.text_input(
-            "🔐 رقم هاتف المعلن / صاحب العقار (يُخزن حصرياً في النظام ولا يظهر"
-            " للزوار):",
+            "🔐 رقم هاتف المعلن / صاحب العقار (يُخزن سرياً):",
             value="+9689XXXXXXXX",
         )
       with col_b2:
@@ -458,9 +237,7 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
             step=10000.0,
         )
 
-      submit_building = st.form_submit_button(
-          "حفظ البناية وتوليد رسالة الواتساب التسويقية"
-      )
+      submit_building = st.form_submit_button("حفظ البناية الجديدة")
 
       if submit_building and b_title_in:
         calculated_annual_income = b_monthly_income_in * 12
@@ -493,7 +270,7 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
           conn.commit()
           conn.close()
           st.success(
-              f"✅ تم حفظ البناية بنجاح! الدخل السنوي المحسوب:"
+              f"✅ تم حفظ البناية بنجاح! الدخل السنوي:"
               f" {calculated_annual_income:,.2f} ر.ع | العائد (ROI):"
               f" {calculated_roi}%"
           )
@@ -501,7 +278,7 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
           st.error(f"خطأ أثناء الحفظ: {e}")
 
     st.markdown("---")
-    st.subheader("📲 توليد رسالة واتساب جاهزة للبنايات المسجلة")
+    st.subheader("📲 توليد رسالة واتساب جاهزة")
     try:
       conn = get_db_connection()
       cursor = conn.cursor()
@@ -550,32 +327,22 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
             f" {bainc if bainc else 0:,.2f} ر.ع)\n"
             f"💵 السعر المطلوب: {bpr if bpr else 0:,.2f} ر.ع\n"
             f"📈 العائد السنوي (ROI): ~{broi if broi else 0}%\n\n"
-            f"📞 *للتواصل والاستفسار:*\n"
-            f"رقم الشركة: `{COMPANY_WHATSAPP}`\n"
-            f"البريد الإلكتروني: `{SENDER_EMAIL}`\n\n"
-            f"#عقارات #بنايات_للبيع #استثمار_عقاري"
+            f"📞 *للتواصل:* `{COMPANY_WHATSAPP}`"
         )
 
-        st.text_area("نسخ النص التسويقي للواتساب:", ready_wa_text, height=220)
-        import urllib.parse
-
+        st.text_area("نسخ النص التسويقي للواتساب:", ready_wa_text, height=200)
         direct_link = f"https://wa.me/{COMPANY_WHATSAPP.replace('+', '').replace(' ', '')}?text={urllib.parse.quote(ready_wa_text)}"
         st.markdown(
             f"[💬 اضغط هنا لفتح واتساب ومشاركة الرسالة مباشرة]"
             f"({direct_link})"
         )
         if bophone:
-          st.info(
-              f"🔒 رقم هاتف مالك العقار المخزن سرياً في النظام (لا يظهر للزوار):"
-              f" `{bophone}`"
-          )
+          st.info(f"🔒 رقم هاتف المالك المخزن سرياً: `{bophone}`")
     else:
-      st.info("لا توجد بنايات مسجلة حالياً لإظهارها.")
+      st.info("لا توجد بنايات مسجلة.")
 
-  with tab2:
-    st.subheader(
-        "✏️ إدارة، تعديل، أو حذف البنايات الاستثمارية المسجلة في النظام"
-    )
+  elif admin_action == "✏️ 2. تعديل أو حذف البنايات":
+    st.subheader("✏️ إدارة وتعديل أو حذف البنايات")
     try:
       conn = get_db_connection()
       cursor = conn.cursor()
@@ -606,7 +373,6 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
         eb_id, eb_title, eb_type, eb_loc, eb_units, eb_mincome, eb_price, eb_ophone = current_b
 
         with st.form(f"edit_building_form_{eb_id}"):
-          st.markdown(f"### تعديل بيانات البناية (ID: {eb_id})")
           new_title = st.text_input("عنوان البناية:", value=eb_title)
           col_e1, col_e2 = st.columns(2)
           with col_e1:
@@ -622,8 +388,7 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
                 "عدد الوحدات:", value=int(eb_units) if eb_units else 1, step=1
             )
             new_ophone = st.text_input(
-                "🔐 رقم هاتف مالك العقار (تخزين سري):",
-                value=eb_ophone if eb_ophone else "",
+                "🔐 رقم هاتف المالك:", value=eb_ophone if eb_ophone else ""
             )
           with col_e2:
             new_mincome = st.number_input(
@@ -672,10 +437,10 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
               )
               conn.commit()
               conn.close()
-              st.success("✨ تم تحديث بيانات البناية بنجاح!")
+              st.success("✨ تم تحديث البيانات بنجاح!")
               st.rerun()
             except Exception as err_up:
-              st.error(f"خطأ أثناء التحديث: {err_up}")
+              st.error(f"خطأ: {err_up}")
 
           if submit_delete:
             try:
@@ -684,23 +449,21 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
               cursor.execute("DELETE FROM buildings WHERE id=?", (eb_id,))
               conn.commit()
               conn.close()
-              st.success("🗑️ تم حذف البناية بنجاح من النظام!")
+              st.success("🗑️ تم الحذف بنجاح!")
               st.rerun()
             except Exception as err_del:
-              st.error(f"خطأ أثناء الحذف: {err_del}")
+              st.error(f"خطأ: {err_del}")
     else:
-      st.info("لا توجد بنايات مسجلة للتعديل أو الحذف حالياً.")
+      st.info("لا توجد بنايات مسجلة.")
 
-  with tab3:
-    st.subheader(
-        "👥 إدارة وعرض وحذف قاعدة بيانات المستثمرين والمهتمين بالصفقات"
-    )
+  elif admin_action == "👥 3. إدارة المستثمرين والمهتمين":
+    st.subheader("👥 قاعدة بيانات المستثمرين والمهتمين الواردة من العملاء")
     try:
       conn = get_db_connection()
       cursor = conn.cursor()
       cursor.execute(
           "SELECT id, name, phone, country, preferred_location, max_budget,"
-          " deal_status FROM buyers ORDER BY id DESC"
+          " deal_status, created_at FROM buyers ORDER BY id DESC"
       )
       all_buyers = cursor.fetchall()
       conn.close()
@@ -709,33 +472,30 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
 
     if all_buyers:
       for ab in all_buyers:
-        ab_id, ab_name, ab_phone, ab_country, ab_loc, ab_budget, ab_status = ab
+        ab_id, ab_name, ab_phone, ab_country, ab_loc, ab_budget, ab_status, ab_date = ab
         with st.expander(
-            f"👤 المستثمر: {ab_name} | الدولة: {ab_country} | الحالة: [{ab_status}]"
+            f"👤 {ab_name} | الدولة: {ab_country} | الهاتف: {ab_phone}"
         ):
           st.markdown(
-              f"📞 **الهاتف:** `{ab_phone}` | 📍 **المنطقة:** {ab_loc} |"
-              f" **الميزانية:** `{ab_budget:,.2f} ر.ع`"
+              f"📍 **المنطقة المطلوبة:** {ab_loc} | 💰 **الميزانية:**"
+              f" `{ab_budget:,.2f} ر.ع` | 🕒 **التاريخ:** {ab_date}"
           )
-          if st.button(
-              f"🗑 حذف السجل رقم ({ab_id}) للمستثمر {ab_name}",
-              key=f"del_buyer_{ab_id}",
-          ):
+          if st.button(f"🗑 حذف سجل المستثمر رقم ({ab_id})", key=f"del_b_{ab_id}"):
             try:
               conn = get_db_connection()
               cursor = conn.cursor()
               cursor.execute("DELETE FROM buyers WHERE id=?", (ab_id,))
               conn.commit()
               conn.close()
-              st.success("🗑 تم حذف بيانات المستثمر بنجاح!")
+              st.success("تم الحذف بنجاح!")
               st.rerun()
-            except Exception as e_b:
-              st.error(f"خطأ أثناء الحذف: {e_b}")
+            except Exception as e:
+              st.error(f"خطأ: {e}")
     else:
-      st.info("لا يوجد مستثمرون مسجلون حالياً.")
+      st.info("لا يوجد طلبات مستثمرين مسجلة حتى الآن.")
 
-  with tab4:
-    st.subheader("📥 نظام تصدير بيانات البنايات والعملاء (Export Reports)")
+  elif admin_action == "📥 4. تصدير التقارير (CSV)":
+    st.subheader("📥 نظام تصدير البيانات والتقارير")
     exp_choice = st.radio(
         "اختر الملف المطلوب تصديره:",
         ["قائمة البنايات الاستثمارية", "قاعدة بيانات المستثمرين"],
@@ -765,15 +525,15 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
                   "الدخل السنوي",
                   "السعر",
                   "العائد %",
-                  "رقم المالك السري",
-                  "تاريخ الإضافة",
+                  "رقم المالك",
+                  "التاريخ",
               ],
           )
           fname = "buildings_report.csv"
         else:
           cursor.execute(
               "SELECT id, name, phone, email, country, preferred_location,"
-              " max_budget, deal_status FROM buyers"
+              " max_budget, deal_status, created_at FROM buyers"
           )
           rows = cursor.fetchall()
           df_exp = pd.DataFrame(
@@ -787,6 +547,7 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
                   "الموقع",
                   "الميزانية",
                   "الحالة",
+                  "التاريخ",
               ],
           )
           fname = "investors_report.csv"
@@ -794,16 +555,16 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
 
         csv_bytes = df_exp.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
-            label=f"💾 اضغط هنا لتحميل ملف ({fname})",
+            label=f"💾 اضغط هنا لتحميل ({fname})",
             data=csv_bytes,
             file_name=fname,
             mime="text/csv",
         )
-        st.success("الملف جاهز للتحميل بنجاح!")
+        st.success("الملف جاهز للتحميل!")
       except Exception as ex_c:
-        st.error(f"خطأ أثناء التصدير: {ex_c}")
+        st.error(f"خطأ: {ex_c}")
 
-  with tab5:
+  elif admin_action == "💰 5. الإيرادات والعمولات":
     st.subheader("💰 إيرادات وعمولات صفقات البنايات")
     st.markdown(
         f"**البنك:** {BANK_INFO['bank_name']} | **الآيبان:**"
@@ -822,3 +583,152 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
     except:
       tot = 0.0
     st.metric("إجمالي التحويلات والإيرادات", f"{tot:,.2f} ر.ع")
+
+  st.markdown("---")
+  st.stop()  # إيقاف التنفيذ هنا لكي لا يظهر شيء من لوحة التحكم للزوار نهائياً
+
+
+# ==========================================
+# منصة الزوار الاحترافية للعملاء (الوجهة الرسمية)
+# ==========================================
+st.markdown(
+    "<h1 style='text-align: center; color: #1b3b36; margin-bottom:"
+    " 0;'>محفظة العروض العقارية الاستثمارية</h1>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    "<h3 style='text-align: center; color: #0e6251; font-weight: 400;"
+    " margin-bottom: 30px;'>اختر فرصتك الاستثمارية القادمة بكل أمان واحترافية</h3>",
+    unsafe_allow_html=True,
+)
+
+# شريط التصفية الاحترافي للعملاء
+col_f1, col_f2 = st.columns([2, 2])
+with col_f1:
+  b_filter_type = st.selectbox(
+      "🏢 تصفية صفقات البنايات حسب القطاع:",
+      ["الكل", "سكنية", "تجارية", "صناعية"],
+  )
+
+st.markdown("---")
+
+# جلب وعرض البنايات
+public_buildings = []
+try:
+  conn = get_db_connection()
+  cursor = conn.cursor()
+  if b_filter_type == "الكل":
+    cursor.execute(
+        "SELECT id, title, type, location, units_count, monthly_income,"
+        " annual_income, price, roi, created_at FROM buildings ORDER BY id DESC"
+    )
+  else:
+    cursor.execute(
+        "SELECT id, title, type, location, units_count, monthly_income,"
+        " annual_income, price, roi, created_at FROM buildings WHERE type = ?"
+        " ORDER BY id DESC",
+        (b_filter_type,),
+    )
+  public_buildings = cursor.fetchall()
+  conn.close()
+except:
+  pass
+
+if public_buildings:
+  for i in range(0, len(public_buildings), 2):
+    cols = st.columns(2)
+    for j in range(2):
+      if i + j < len(public_buildings):
+        b_item = public_buildings[i + j]
+        (
+            b_id,
+            b_title,
+            b_type,
+            b_loc,
+            b_units,
+            b_mincome,
+            b_aincome,
+            b_price,
+            b_roi,
+            b_date,
+        ) = b_item
+        with cols[j]:
+          whatsapp_msg = (
+              f"مرحباً، أهتم بالاستفسار عن البناية ({b_title}) - نوع"
+              f" ({b_type}) في ({b_loc}) بسعر ({b_price:,.2f} ر.ع) وعائد"
+              f" ({b_roi}%)."
+          )
+          wa_link = f"https://wa.me/{COMPANY_WHATSAPP.replace('+', '').replace(' ', '')}?text={urllib.parse.quote(whatsapp_msg)}"
+
+          st.markdown(
+              f"""
+                <div class="property-card-modern">
+                    <div class="card-title">🏢 {b_title}</div>
+                    <div class="card-location">📍 الموقع: <b>{b_loc}</b> | النوع: <b>{b_type}</b></div>
+                    <div>
+                        <span class="card-price-badge">💰 {b_price:,.2f} ر.ع</span>
+                    </div>
+                    <div class="card-details">
+                        🚪 عدد الوحدات: <b>{b_units}</b><br>
+                        💵 الدخل الشهري: <b>{b_mincome if b_mincome else 0:,.2f} ر.ع</b> | السنوي: <b>{b_aincome if b_aincome else 0:,.2f} ر.ع</b><br>
+                        📈 العائد السنوي (ROI): <b>~{b_roi if b_roi else 0}%</b>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 14px;">
+                        <span style="color: #94a3b8; font-size: 12px;">🕒 أُضيف في: {b_date.split(' ')[0] if b_date else ''}</span>
+                        <a href="{wa_link}" target="_blank" class="whatsapp-btn">💬 تواصل واتساب</a>
+                    </div>
+                </div>
+            """,
+              unsafe_allow_html=True,
+          )
+else:
+  st.info("لا توجد بنايات استثمارية معروضة حالياً. يرجى العودة لاحقاً.")
+
+# نموذج إرسال طلب المستثمر (للعملاء مباشرة)
+st.markdown("---")
+st.subheader("📋 نموذج إبداء رغبة استثمارية وطلب عقار")
+st.write(
+    "هل تبحث عن مواصفات محددة؟ اترك بياناتك وسيقوم فريق الوساطة بالتواصل معك"
+    " فوراً بالفرص المناسبة:"
+)
+
+with st.form("client_inquiry_form"):
+  col_c1, col_c2 = st.columns(2)
+  with col_c1:
+    c_name = st.text_input("الاسم الكريم:")
+    c_phone = st.text_input("رقم الهاتف (مع مفتاح الدولة):", value="+968")
+    c_country = st.text_input("الدولة / مكان الإقامة:", value="سلطنة عمان")
+  with col_c2:
+    c_loc = st.text_input("المنطقة أو الولاية المفضلة للاستثمار:")
+    c_budget = st.number_input(
+        "الميزانية التقديرية (ريال عماني):", value=300000.0, step=10000.0
+    )
+    c_email = st.text_input("البريد الإلكتروني (اختياري):")
+
+  submit_client_request = st.form_submit_button("إرسال الطلب لفريق الوساطة")
+
+  if submit_client_request and c_name and c_phone:
+    try:
+      conn = get_db_connection()
+      cursor = conn.cursor()
+      cursor.execute(
+          """INSERT INTO buyers (name, phone, email, country, preferred_location, max_budget, deal_status, created_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+          (
+              c_name,
+              c_phone,
+              c_email,
+              c_country,
+              c_loc,
+              c_budget,
+              "مهتم جديد",
+              datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+          ),
+      )
+      conn.commit()
+      conn.close()
+      st.success(
+          "✅ تم إرسال طلبك بنجاح! سيتواصل معك مستشارنا العقاري في أقرب وقت."
+      )
+    except Exception as err:
+      st.error(f"حدث خطأ أثناء إرسال الطلب: {err}")
