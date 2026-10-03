@@ -8,7 +8,7 @@ from config import BANK_INFO, SENDER_EMAIL, SENDER_PASSWORD
 # رقم هاتف الشركة الثابت للواتساب
 COMPANY_WHATSAPP = "+96896330139"
 
-# كلمة المرور السرية الأصلية الخاصة بكم
+# كلمة المرور السرية للإدارة
 ADMIN_PASSWORD = "GPI*2025"
 
 # إعداد الصفحة وتصميم الواجهة الفاخرة
@@ -18,7 +18,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# حقن أكواد CSS لتصميم البطاقات العصرية وتنسيق الواجهة
+# حقن أكواد CSS لتنسيق الواجهة وإخفاء أي عناصر غير مرغوب فيها
 st.markdown(
     """
     <style>
@@ -212,22 +212,6 @@ def init_db():
 init_db()
 
 
-def add_log(log_type, message):
-  try:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    cursor.execute(
-        "INSERT INTO activity_logs (timestamp, log_type, message) VALUES (?, ?,"
-        " ?)",
-        (timestamp, log_type, message),
-    )
-    conn.commit()
-    conn.close()
-  except:
-    pass
-
-
 # ==========================================
 # القائمة الجانبية وتسجيل الدخول (حصرياً في الـ Sidebar)
 # ==========================================
@@ -237,12 +221,10 @@ if "authenticated" not in st.session_state:
   st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-  with st.sidebar.popover("🔑 تسجيل دخول المشرف"):
-    st.markdown("أدخل كلمة المرور الخاصة بالإدارة:")
+  # تم وضع بوب أوفر تسجيل الدخول حصرياً داخل القائمة الجانبية السوداء/الخضراء
+  with st.sidebar.expander("🔑 تسجيل دخول المشرف"):
     with st.form("admin_login_form"):
-      password_input = st.text_input(
-          "الباسورد:", type="password", key="pwd_box", label_visibility="collapsed"
-      )
+      password_input = st.text_input("كلمة المرور:", type="password")
       submit_login = st.form_submit_button("تحقق ودخول")
 
       if submit_login:
@@ -254,7 +236,7 @@ if not st.session_state.authenticated:
 
   app_mode = "🌍 عرض منصة الزوار"
   st.sidebar.info(
-      "💡 الموقع معروض للعملاء. لوحة التحكم محمية بكلمة المرور الخاصة بالشركة."
+      "💡 الموقع معروض للعملاء. لوحة التحكم محمية بكلمة المرور الخاصة."
   )
 else:
   st.sidebar.success("🟢 تم تسجيل الدخول بنجاح")
@@ -440,10 +422,10 @@ if app_mode == "🌍 عرض منصة الزوار":
 # ==========================================
 # 2. لوحة التحكم للمشرف (Admin Dashboard)
 # ==========================================
-elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
+elif app_mode == "⚙️️ لوحة تحكم الوسيط الذكي":
   st.title("⚙️ لوحة تحكم العروض العقارية")
   st.warning(
-      "⚠️️ لوحة تحكم سرية خاصة بإدارة البنايات، تخزين أرقام أصحاب العقار، وتوليد"
+      "⚠ لوحة تحكم سرية خاصة بإدارة البنايات، تخزين أرقام أصحاب العقار، وتوليد"
       " الرسائل."
   )
 
@@ -760,7 +742,7 @@ elif app_mode == "⚙️ لوحة تحكم الوسيط الذكي":
               cursor.execute("DELETE FROM buyers WHERE id=?", (ab_id,))
               conn.commit()
               conn.close()
-              st.success("🗑️️ تم حذف بيانات المستثمر بنجاح!")
+              st.success("🗑 تم حذف بيانات المستثمر بنجاح!")
               st.rerun()
             except Exception as e_b:
               st.error(f"خطأ أثناء الحذف: {e_b}")
