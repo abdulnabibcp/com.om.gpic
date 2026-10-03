@@ -213,30 +213,29 @@ init_db()
 
 
 # ==========================================
-# القائمة الجانبية وتسجيل الدخول (زر صغير في الـ Sidebar)
+# القائمة الجانبية ونظام الدخول (متوافق تماماً مع الهواتف والكمبيوتر)
 # ==========================================
-st.sidebar.markdown("### 🔐 الإدارة")
+st.sidebar.markdown("### 🔐 بوابة الإدارة والتحكم")
 
 if "authenticated" not in st.session_state:
   st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-  with st.sidebar.popover("🔑 دخول المشرف"):
-    with st.form("admin_login_form"):
-      password_input = st.text_input("كلمة المرور:", type="password")
-      submit_login = st.form_submit_button("دخول")
+  with st.sidebar.form("admin_login_form"):
+    password_input = st.text_input("كلمة مرور المشرف:", type="password")
+    submit_login = st.form_submit_button("تسجيل الدخول للوحة التحكم")
 
-      if submit_login:
-        if password_input == ADMIN_PASSWORD:
-          st.session_state.authenticated = True
-          st.rerun()
-        else:
-          st.error("❌ خطأ")
+    if submit_login:
+      if password_input == ADMIN_PASSWORD:
+        st.session_state.authenticated = True
+        st.rerun()
+      else:
+        st.sidebar.error("❌ كلمة المرور غير صحيحة")
 
   app_mode = "🌍 عرض منصة الزوار"
 else:
-  st.sidebar.success("🟢 مسجل")
-  if st.sidebar.button("🚪 خروج"):
+  st.sidebar.success("🟢 مرحباً، أنت مسجل كمسؤول")
+  if st.sidebar.button("🚪 تسجیل خروج"):
     st.session_state.authenticated = False
     st.rerun()
 
@@ -258,16 +257,6 @@ if app_mode == "🌍 عرض منصة الزوار":
   st.markdown(
       "<h3 style='text-align: center; color: #0e6251; font-weight: 400;"
       " margin-bottom: 30px;'>محفظة البنايات والعقارات الاستثمارية المتميزة</h3>",
-      unsafe_allow_html=True,
-  )
-
-  st.markdown(
-      """
-        <div style="background: linear-gradient(135deg, #1b3b36 0%, #0e6251 100%); color: white; padding: 25px; border-radius: 14px; margin-bottom: 35px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            <h4 style="margin-top:0; color: #ffffff;">أهلاً بكم عملائنا الكرام والمستثمرين 🇴🇲 🇸🇦 🇦🇪 🇰🇼 🇶🇦 🇧🇭</h4>
-            <p style="margin-bottom:0; line-height: 1.6;">نقدم أفضل الفرص العقارية والبنايات الاستثمارية بعوائد مجزية.</p>
-        </div>
-    """,
       unsafe_allow_html=True,
   )
 
@@ -351,7 +340,10 @@ if app_mode == "🌍 عرض منصة الزوار":
                 unsafe_allow_html=True,
             )
   else:
-    st.info("لا توجد بنايات استثمارية معروضة حالياً.")
+    st.info(
+        "لا توجد بنايات استثمارية معروضة حالياً. (قم بإضافتها من لوحة تحكم"
+        " المشرف)."
+    )
 
   st.markdown("---")
   st.markdown(
@@ -578,7 +570,7 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
               f" `{bophone}`"
           )
     else:
-      st.info("لا توجد بنايات مسجلة حالياً.")
+      st.info("لا توجد بنايات مسجلة حالياً لإظهارها.")
 
   with tab2:
     st.subheader(
@@ -697,7 +689,7 @@ elif app_mode == "⚙ لوحة تحكم الوسيط الذكي":
             except Exception as err_del:
               st.error(f"خطأ أثناء الحذف: {err_del}")
     else:
-      st.info("لا توجد بنايات مسجلة للتعديل أو الحذف.")
+      st.info("لا توجد بنايات مسجلة للتعديل أو الحذف حالياً.")
 
   with tab3:
     st.subheader(
